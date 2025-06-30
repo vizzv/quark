@@ -1,0 +1,19 @@
+{
+  "name": "quark",
+  "version": "1.0.0",
+  "description": "It is simple,statically typed ,easy to use , machine independent , modern programming language",
+  "main": "index.js",
+  "scripts": {
+    "tokenizer": "ts-node ./src/frontend/Tokenizer.ts",
+    "quark": "ts-node ./src/quark.ts "
+  },
+  "keywords": [
+    "vizzv"
+  ],
+  "author": "vizzv",
+  "license": "ISC",
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}

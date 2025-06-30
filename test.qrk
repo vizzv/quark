@@ -1,0 +1,36 @@
+number xyz = 532 132;
+//this is comment online only
+/*
+this is 
+multi line
+comments
+*/
+number one = 1;
+one++;
+one--;
+one += one;
+one -= one;
+one *= one;
+one /= one;
+text name = "Vizzv";
+number array = new number[5];
+class Human
+{
+    text name;
+    number height;
+    number age;
+    number weight;
+    public Human()
+    {
+        this.name = "";
+        this.height = -1;
+        this.weight = -1;
+    }
+    public getName()
+    {
+        return this.name;
+    }
+}
+Human h1 = new Human(); 
+
+print();
