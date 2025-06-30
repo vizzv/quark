@@ -3,8 +3,10 @@ import { TOKEN_TYPE, TokenType } from "./token";
 export type ASTNodeType =
     | 'Program'
     | 'VariableDeclaration'
+    | 'identifier'
     | 'ArithmeticExpression'
     | 'RelationalExpression'
+    | 'IfExpression'
     | 'LogicalExpression'
     | 'BitwiseExpression' 
     | 'AssigmentExpression'
@@ -16,6 +18,7 @@ export type ASTNodeType =
 export interface AstNode {
     type: ASTNodeType;
     id: string;
+    body?:AstNode[];
     [key: string]: any;
 }
 
@@ -25,6 +28,7 @@ export interface AstNode {
     [key: string]: any;
     type: ASTNodeType;
     id: string;
+    body?: AstTreeNode[];
     constructor(type: ASTNodeType, id: string, extraProps: { [key: string]: any } = {}) {
         this.type = type;
         this.id = id;
@@ -128,5 +132,19 @@ export class VariableDeclaration extends AstTreeNode
         
         super('VariableDeclaration',id);
         this.variableType = variableType;
+    }
+}
+
+export class IfExpression extends AstTreeNode
+{
+    elseBlock :AstTreeNode[] | null
+    ifCondition :LogicalExpression
+    constructor(id:string,ifCondition:LogicalExpression,thenBlock:AstTreeNode[],elseBlock:AstTreeNode[] | null)
+    {
+        super('IfExpression',id);
+        this.body = [];
+        this.ifCondition = ifCondition;
+        this.elseBlock = elseBlock;
+        this.body.push(...thenBlock);
     }
 }

@@ -22,6 +22,7 @@ try {
 // Create tokenizer and get tokens
 const tokenizer = new Tokenizer(code);
 const tokens = tokenizer.tokenize();
+console.log(tokens)
 const parser = new Parser(tokens);
 const ast = parser.parse();
 console.log(ast);

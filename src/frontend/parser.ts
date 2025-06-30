@@ -1,4 +1,4 @@
-import { AstTreeNode, ProgramNode,ASTNodeType, BoolLiteral, TextLiteral, NumberLiteral, VariableDeclaration } from "./abstractSyntaxTree";
+import { AstTreeNode, ProgramNode,ASTNodeType, BoolLiteral, TextLiteral, NumberLiteral, VariableDeclaration, IfExpression, LogicalExpression } from "./abstractSyntaxTree";
 import { Token, TOKEN_TYPE } from "./token";
 
 export class Parser {
@@ -31,6 +31,7 @@ export class Parser {
 
     private parseLiteral():AstTreeNode
     {
+        
         var currentToken = this.advance();
         if(currentToken.type === TOKEN_TYPE.BOOL)
         {
@@ -78,26 +79,107 @@ export class Parser {
         this.expect(TOKEN_TYPE.PUNCTUATION,';');
         if(value instanceof BoolLiteral )
         {
-            return new VariableDeclaration("","bool")
+
+            const varDeclare  =new VariableDeclaration(keyword.value??"","bool");
+            varDeclare.name = identifier.value;
+            varDeclare.body = [] as AstTreeNode[];
+            varDeclare.body.push(value)
+            return varDeclare;
         }
         else if(value instanceof NumberLiteral)
         {   
-            return new VariableDeclaration("","number")
+            const varDeclare  =new  VariableDeclaration(keyword.value??"","number")
+            varDeclare.name = identifier.value;
+            varDeclare.body = [] as AstTreeNode[];
+            varDeclare.body.push(value )
+            return varDeclare;
         }
         else if(value instanceof TextLiteral)
         {
-            return new VariableDeclaration("",'text')
+            const varDeclare  =new  VariableDeclaration(keyword.value??"","text")
+            varDeclare.name = identifier.value;
+            varDeclare.body = [] as AstTreeNode[];
+            varDeclare.body.push(value )
+            return varDeclare;
         }
         else{
-            throw new Error(`INvalid variable declaration at line ${keyword.line} col ${keyword.col}, Invalid value is assigned or resulting expression is of different type`)
+            throw new Error(`Invalid variable declaration at line ${keyword.line} col ${keyword.col}, Invalid value is assigned or resulting expression is of different type`)
         }
         
     }
+    private parseIfExpression():AstTreeNode | null
+    {
+        this.expect(TOKEN_TYPE.KEYWORD, 'if');
+        this.expect(TOKEN_TYPE.PUNCTUATION, '(');
+        const condition = this.parseExpression();
+        this.expect(TOKEN_TYPE.PUNCTUATION, ')');
+        this.expect(TOKEN_TYPE.PUNCTUATION, '{');
+    
+        const thenBranch: AstTreeNode[] = [];
+        while (this.peek().value !== '}') {
+            thenBranch.push(this.parseExpression() as AstTreeNode);
+        }
+        this.expect(TOKEN_TYPE.PUNCTUATION, '}');
+    
+        let elseBranch: AstTreeNode[] | undefined;
+        if (this.peek().type === TOKEN_TYPE.KEYWORD && this.peek().value === 'else') {
+            this.advance();
+            this.expect(TOKEN_TYPE.PUNCTUATION, '{');
+            elseBranch = [];
+            while (this.peek().value !== '}') {
+                elseBranch.push(this.parseExpression() as AstTreeNode);
+            }
+            this.expect(TOKEN_TYPE.PUNCTUATION, '}');
+        }
+
+        return  new IfExpression(this.id(),condition as AstTreeNode,thenBranch,elseBranch as AstTreeNode[])
+    }
+    private parsePrimary(): AstTreeNode {
+        const token = this.peek();
+    
+        if (token.type === TOKEN_TYPE.NUMBER) {
+            return this.parseLiteral();
+        }
+    
+        if (token.type === TOKEN_TYPE.IDENTIFIER) {
+            const idToken = this.advance();
+            return {
+                id: this.id(),
+                type: "identifier",
+                name: idToken.value
+            };
+        }
+        console.log(token)
+    
+        throw new Error(`Unexpected token '${token.value}' at line ${token.line}`);
+    }
+    
+    private parseComparison(): AstTreeNode {
+        let left = this.parsePrimary();
+    
+        while (
+            this.peek().type === TOKEN_TYPE.OPERATOR &&
+            ['==', '!=', '>=', '<=', '>', '<'].includes(this.peek().value??"")
+        ) {
+            const operator = this.advance().value;
+            const right = this.parsePrimary();
+    
+            left = {
+                id: this.id(),
+                type: "LogicalExpression",
+                operator,
+                left,
+                right
+            };
+        }
+    
+        return left;
+    }
+    
 
     private parseExpression(): AstTreeNode | null
     {
         const currentToken = this.peek();
-        console.log("currentToken",currentToken.value,currentToken.col,currentToken.line);
         if(currentToken.type===TOKEN_TYPE.KEYWORD)
         {
             switch(currentToken.value)
@@ -107,14 +189,24 @@ export class Parser {
                 case 'bool':
                 case 'char':
                     return this.parseVariableDeclaration();
+                case 'if':
+                    return this.parseIfExpression();
+                default:
+                    throw new Error(`Unexpected Keyword is encountered ${currentToken.value}`);
             }
         }
         else if([TOKEN_TYPE.BOOL,TOKEN_TYPE.CHAR,TOKEN_TYPE.TEXT,TOKEN_TYPE.NUMBER].includes(currentToken.type))
         {
             return this.parseLiteral();
         }
+        else if(currentToken.type === TOKEN_TYPE.IDENTIFIER)
+        {
+            return this.parseComparison();
+        }
+
         else{
-            throw new Error(`Unexpected Expression ${currentToken.type} arrived at line ${currentToken.line} col ${currentToken.col}`)
+            console.log(JSON.stringify(currentToken));
+            throw new Error(`Unexpected Expression ${currentToken.type+' '+currentToken.value} arrived at line ${currentToken.line} col ${currentToken.col}`)
         }
         return null;
     }
@@ -140,8 +232,8 @@ export class Parser {
             var statement = this.parseExpression();
             if(statement){
                 programNode.body.push(statement)
+                console.log("statement pushed ",statement);
             }
-            this.advance();
         }
         return programNode
     }
