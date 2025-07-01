@@ -12,8 +12,10 @@ export type ASTNodeType =
     | 'AssigmentExpression'
     | 'SpecialAssignmentExpression'
     | 'NumberLiteral'
-    | 'StringLiteral'
+    | 'TextLiteral'
     | 'BoolLiteral'
+    | 'ReturnStatement'
+    | 'EOF'
 
 export interface AstNode {
     type: ASTNodeType;
@@ -46,7 +48,13 @@ export class ProgramNode extends AstTreeNode {
 
 }
 
-
+export class EofNode extends AstTreeNode
+{
+    constructor()
+    {
+        super('EOF','eof');
+    }
+}
 
 export class LogicalExpression extends AstTreeNode {
     constructor(id:string) {
@@ -110,7 +118,7 @@ export class TextLiteral extends AstTreeNode {
     value:string
     constructor(id:string,value:string) {
         
-        super('StringLiteral',id);
+        super('TextLiteral',id);
         this.value = value;
     }
 }
@@ -120,7 +128,7 @@ export class BoolLiteral extends AstTreeNode {
     value:boolean
     constructor(id:string,value:boolean) {
         
-        super('ArithmeticExpression',id);
+        super('BoolLiteral',id);
         this.value = value;
     }
 }
@@ -147,4 +155,40 @@ export class IfExpression extends AstTreeNode
         this.elseBlock = elseBlock;
         this.body.push(...thenBlock);
     }
+}
+
+
+export function printAstTree(node: AstTreeNode, indent = ''): void {
+    console.log(`${indent}${node.type}${node.name ? ` (${node.name})` : ''}`);
+
+    if (node instanceof IfExpression) {
+        console.log(`${indent}  ├─ Condition:`);
+        printAstTree(node.ifCondition, indent + '  │   ');
+        console.log(`${indent}  ├─ Then:`);
+        node.body?.forEach(child => printAstTree(child, indent + '  │   '));
+        if (node.elseBlock) {
+            console.log(`${indent}  └─ Else:`);
+            node.elseBlock.forEach(child => printAstTree(child, indent + '      '));
+        }
+    } else if (node.body && Array.isArray(node.body)) {
+        node.body.forEach(child => printAstTree(child, indent + '  '));
+    }
+}
+
+export function toDot(node: AstTreeNode, parentId?: string, lines: string[] = []): string[] {
+    const currentId = node.id;
+    lines.push(`${currentId} [label="${node.type}${node.name ? `\\n${node.name}` : ''}"];`);
+    if (parentId) {
+        lines.push(`${parentId} -> ${currentId};`);
+    }
+
+    if (node instanceof IfExpression) {
+        toDot(node.ifCondition, currentId, lines);
+        node.body?.forEach(child => toDot(child, currentId, lines));
+        node.elseBlock?.forEach(child => toDot(child, currentId, lines));
+    } else if (node.body) {
+        node.body.forEach(child => toDot(child, currentId, lines));
+    }
+
+    return lines;
 }

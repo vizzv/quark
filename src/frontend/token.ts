@@ -122,6 +122,6 @@ export class TokenFactory {
         return { type: 'punctuation', value: ':', line, col };
     }
     static createEOF(line: number, col: number): Token {
-        return { type: 'eof', line, col };
+        return { type: 'eof', line, col,value:'eof' };
     }
 }
