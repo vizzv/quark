@@ -64,7 +64,6 @@ export class LogicalExpression extends AstTreeNode {
 export class ArithmeticExpression extends AstTreeNode {
     value:number
     constructor(id:string,value:number) {
-        
         super('ArithmeticExpression',id);
         this.value = value;
     }
@@ -145,15 +144,15 @@ export class VariableDeclaration extends AstTreeNode
 
 export class IfExpression extends AstTreeNode
 {
-    elseBlock :AstTreeNode[] | null
+    elseBranch :AstTreeNode[] | null
     ifCondition :LogicalExpression
     constructor(id:string,ifCondition:LogicalExpression,thenBlock:AstTreeNode[],elseBlock:AstTreeNode[] | null)
     {
         super('IfExpression',id);
         this.body = [];
         this.ifCondition = ifCondition;
-        this.elseBlock = elseBlock;
-        this.body.push(...thenBlock);
+        this.elseBranch = elseBlock;
+        this.thenBranch = thenBlock;
     }
 }
 
@@ -168,7 +167,7 @@ export function printAstTree(node: AstTreeNode, indent = ''): void {
         node.body?.forEach(child => printAstTree(child, indent + '  │   '));
         if (node.elseBlock) {
             console.log(`${indent}  └─ Else:`);
-            node.elseBlock.forEach(child => printAstTree(child, indent + '      '));
+            node.elseBlock.forEach((child:AstTreeNode) => printAstTree(child as AstTreeNode, indent + '      '));
         }
     } else if (node.body && Array.isArray(node.body)) {
         node.body.forEach(child => printAstTree(child, indent + '  '));
@@ -185,7 +184,7 @@ export function toDot(node: AstTreeNode, parentId?: string, lines: string[] = []
     if (node instanceof IfExpression) {
         toDot(node.ifCondition, currentId, lines);
         node.body?.forEach(child => toDot(child, currentId, lines));
-        node.elseBlock?.forEach(child => toDot(child, currentId, lines));
+        node.elseBlock?.forEach((child:AstTreeNode) => toDot(child, currentId, lines));
     } else if (node.body) {
         node.body.forEach(child => toDot(child, currentId, lines));
     }

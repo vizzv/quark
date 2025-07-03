@@ -27,7 +27,5 @@ const tokens = tokenizer.tokenize();
 console.log(tokens);
 const parser = new Parser(tokens);
 const ast = parser.parse();
-debugger;
-const dot = `digraph AST {\n${toDot(ast).join('\n')}\n}`;
-
+console.log(toDot(ast));
 printAstTree(ast)

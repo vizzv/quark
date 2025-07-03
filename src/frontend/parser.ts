@@ -20,7 +20,6 @@ export class Parser {
         return this.tokens[this.index++];
     }
     private expect(type: string, value?: string): Token {
-        console.log("lollll",this.peek())
         const token = this.advance();
         if (token.type !== type || (value && token.value !== value)) {
             throw new Error(`Expected ${type} '${value}', but got ${token.type} '${token.value}'`);
@@ -57,6 +56,7 @@ export class Parser {
         throw new Error(`Unsupported literal type: ${currentToken.type} at line ${currentToken.line} col ${currentToken.col}`);
     }
     private getType(node: AstTreeNode): string {
+
         switch (node.type) {
             case "BoolLiteral":
                 return "bool";
@@ -65,19 +65,19 @@ export class Parser {
             case "TextLiteral":
                 return "text";
             case "IfExpression": {
-                const thenTypes = node.thenBranch.map(this.getType);
-                const elseTypes = node.elseBranch?.map(this.getType) ?? [];
+                const thenTypes = node.thenBranch.map((n: AstTreeNode) => this.getType(n));
+                const elseTypes = node.elseBranch?.map((n: AstTreeNode) => this.getType(n)) ?? [];
                 const allTypes = new Set([...thenTypes, ...elseTypes]);
                 if (allTypes.size === 1) return [...allTypes][0];
                 throw new Error(`Mismatched return types in if-expression`);
             }
             case "ReturnStatement":
-                return this.getType(node.value); // assume return wraps an expression
+                return this.getType(node.value as BoolLiteral);
             default:
                 throw new Error(`Cannot determine type of node type: ${node.type}`);
         }
     }
-    
+
 
     private parseVariableDeclaration(): AstTreeNode {
         const keyword = this.advance();
@@ -89,18 +89,20 @@ export class Parser {
         const value = this.parseExpression();
         this.expect(TOKEN_TYPE.PUNCTUATION, ';');
         const expectedType = keyword.value ?? "";
-const actualType = this.getType(value as AstTreeNode);
+        const actualType = this.getType(value as AstTreeNode);
 
-if (expectedType !== actualType) {
-    throw new Error(
-        `Type mismatch in variable declaration: expected ${expectedType}, got ${actualType}`
-    );
-}
+        if (expectedType !== actualType) {
+            throw new Error(
+                `Type mismatch in variable declaration: expected ${expectedType}, got ${actualType}`
+            );
+        }
 
-const varDeclare = new VariableDeclaration(expectedType, expectedType as "text"|"number"|"bool"|"char");
-varDeclare.name = identifier.value;
-varDeclare.body = [value as AstTreeNode];
-return varDeclare;
+        const varDeclare = new VariableDeclaration(expectedType, expectedType as "text" | "number" | "bool" | "char");
+        varDeclare.name = identifier.value;
+        varDeclare.body = [value as AstTreeNode];
+        return varDeclare;
+
+
         // if (value instanceof BoolLiteral) {
 
         //     const varDeclare = new VariableDeclaration(keyword.value ?? "", "bool");
@@ -124,7 +126,7 @@ return varDeclare;
         //     return varDeclare;
         // }
         // else {
-        //     throw new Error(`Invalid variable declaration at line ${keyword.line} col ${keyword.col}, Invalid value is assigned or resulting expression is of different type`)
+        //     throw new Error(`Invalid variable declaration ${keyword.value} at line ${keyword.line} col ${keyword.col}, Invalid value is assigned or resulting expression is of different type`)
         // }
 
     }
@@ -137,7 +139,13 @@ return varDeclare;
 
         const thenBranch: AstTreeNode[] = [];
         while (this.peek().value !== '}') {
-            thenBranch.push(this.parseExpression() as AstTreeNode);
+            try {
+                var xyz = this.parseExpression();
+                thenBranch.push(xyz as AstTreeNode);
+            } catch (err) {
+                console.error("Error in if-then branch:", err);
+                this.advance(); // Advance to avoid infinite loop
+            }
         }
         this.expect(TOKEN_TYPE.PUNCTUATION, '}');
         let elseBranch: AstTreeNode[] | undefined;
@@ -145,9 +153,8 @@ return varDeclare;
             this.advance();
             this.expect(TOKEN_TYPE.PUNCTUATION, '{');
             elseBranch = [];
- 
+
             while (this.peek().value !== '}') {
-                console.log("elsae lol")
                 elseBranch?.push(this.parseExpression() as AstTreeNode);
             }
             this.expect(TOKEN_TYPE.PUNCTUATION, '}');
@@ -158,11 +165,7 @@ return varDeclare;
     private parsePrimary(): AstTreeNode {
         const token = this.peek();
 
-        if (token.type === TOKEN_TYPE.NUMBER) {
-            return this.parseLiteral();
-        }
-        if(token.type == TOKEN_TYPE.BOOL)
-        {
+        if ([TOKEN_TYPE.NUMBER, TOKEN_TYPE.BOOL, TOKEN_TYPE.TEXT].includes(token.type)) {
             return this.parseLiteral();
         }
 
@@ -174,23 +177,20 @@ return varDeclare;
                 name: idToken.value
             };
         }
-        console.log(token)
-
         throw new Error(`Unexpected token '${token.value}' at line ${token.line}`);
     }
     private parseReturnStatement(): AstTreeNode {
         const returnToken = this.advance();
         const value = this.parseExpression();
-
         this.expect(TOKEN_TYPE.PUNCTUATION, ';');
-        
+
         return {
             id: this.id(),
-            type:'ReturnStatement',
+            type: 'ReturnStatement',
             value
         };
     }
-    
+
 
     private parseComparison(): AstTreeNode {
         let left = this.parsePrimary();
@@ -198,8 +198,8 @@ return varDeclare;
             this.peek().type === TOKEN_TYPE.OPERATOR &&
             ['=', '!', '>=', '<=', '>', '<'].includes(this.peek().value ?? "")
         ) {
-            
-            var operator = this.advance().value??"";
+
+            var operator = this.advance().value ?? "";
             const right = this.parsePrimary();
 
             left = {
@@ -217,7 +217,6 @@ return varDeclare;
 
     private parseExpression(): AstTreeNode | null {
         const currentToken = this.peek();
-        console.log(currentToken)
         if (currentToken.type === TOKEN_TYPE.KEYWORD) {
             switch (currentToken.value) {
                 case 'number':
@@ -232,8 +231,6 @@ return varDeclare;
                 case 'true':
                 case 'false':
                     return this.parsePrimary();
-                case 'else':
-                    console.log("lol")
                 default:
                     throw new Error(`Unexpected Keyword is encountered ${currentToken.value}`);
             }
@@ -244,8 +241,7 @@ return varDeclare;
         else if (currentToken.type === TOKEN_TYPE.IDENTIFIER) {
             return this.parseComparison();
         }
-        else if(currentToken.type==="eof")
-        {
+        else if (currentToken.type === "eof") {
             return new EofNode();
         }
 
@@ -255,9 +251,9 @@ return varDeclare;
     }
     private id(): string {
         const randomArray = [
-            ...'abcdefrstngh2lmQR7HIJKLMNOPuvwxyz',
-            ...'ABCDijkVWXYZ',
-            ...'01EFSTUopqG345689'
+            ...'abcfrstngh2lmQR7HIJKLMNOPuvwxyz',
+            ...'ABCDijk68VWXYZ',
+            ...'01EFSTUopqG34de59'
         ];
         var uniq_id = "";
         for (var i = 0; i < 16; i++) {
@@ -268,23 +264,25 @@ return varDeclare;
 
     parse(): ProgramNode {
         var programNode = new ProgramNode();
-        var run =1;
         while (!this.isAtEnd()) {
-            console.log(run++);
-            try
-            {
-            var statement = this.parseExpression();
-            console.log("statement",statement)
-            if (statement) {
-                programNode.body.push(statement)
-            }
-            
-        }catch(err)
-            {
+            try {
+                var statement = this.parseExpression();
+                if (statement) {
+                    programNode.body.push(statement);
+                    if(statement.type==='EOF')
+                    {
+                        break;
+                    }
+                }
+                else{
+                    console.log("me nalla hu")
+                }
+
+            } catch (err) {
                 console.error(err)
                 this.advance();
             }
-        } 
+        }
         return programNode
     }
 }
