@@ -15,6 +15,7 @@ export type ASTNodeType =
     | 'TextLiteral'
     | 'BoolLiteral'
     | 'ReturnStatement'
+    | 'ExitStatement'
     | 'EOF'
 
 export interface AstNode {
@@ -153,6 +154,15 @@ export class IfExpression extends AstTreeNode
         this.ifCondition = ifCondition;
         this.elseBranch = elseBlock;
         this.thenBranch = thenBlock;
+    }
+}
+
+export class ExitStatement extends AstTreeNode
+{
+    constructor(id:string,statementValue:AstTreeNode)
+    {
+        super('ExitStatement',id);
+        this.body =[statementValue];
     }
 }
 

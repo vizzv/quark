@@ -10,6 +10,7 @@ const keywords = new Set([
     'function', 'class', 'new', 'this',
     'absorb', 'radiate', 'null',
     'void', 'return',
+    'exit'
 ]);
 
 const operators = new Set([
@@ -106,6 +107,11 @@ export class Tokenizer {
                 this.advance();
                 while (this.isAlphanumeric(this.peek())) {
                     word += this.advance();
+                }
+                if(word.toLowerCase() === 'exit')
+                {
+                    this.tokens.push(TokenFactory.createExit(this.line,this.col));
+                    continue;
                 }
                 if(["true","false"].includes(word.toLowerCase()))
                 {

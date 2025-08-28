@@ -1,5 +1,5 @@
 import { stat } from "fs";
-import { AstTreeNode, ProgramNode, ASTNodeType, BoolLiteral, TextLiteral, NumberLiteral, VariableDeclaration, IfExpression, LogicalExpression, EofNode } from "./abstractSyntaxTree";
+import { AstTreeNode, ProgramNode, ASTNodeType, BoolLiteral, TextLiteral, NumberLiteral, VariableDeclaration, IfExpression, LogicalExpression, EofNode, ExitStatement } from "./abstractSyntaxTree";
 import { Token, TOKEN_TYPE } from "./token";
 
 export class Parser {
@@ -191,6 +191,20 @@ export class Parser {
         };
     }
 
+    private parseExit(): AstTreeNode {
+        const exitToken = this.advance();
+        this.expect(TOKEN_TYPE.PUNCTUATION, '(');
+        var exitCode = this.parseExpression();
+        this.expect(TOKEN_TYPE.PUNCTUATION, ')');
+        this.expect(TOKEN_TYPE.PUNCTUATION, ';');
+        console.log("Exit token", exitToken);
+        console.log("next token",this.peek());
+        console.log("exit code",exitCode);
+        var exitNode = new ExitStatement("", exitCode as AstTreeNode);
+        exitNode.body = [exitCode as AstTreeNode];
+        return exitNode;
+    }
+
 
     private parseComparison(): AstTreeNode {
         let left = this.parsePrimary();
@@ -231,6 +245,8 @@ export class Parser {
                 case 'true':
                 case 'false':
                     return this.parsePrimary();
+                case 'exit':
+                    return this.parseExit();
                 default:
                     throw new Error(`Unexpected Keyword is encountered ${currentToken.value}`);
             }

@@ -2,6 +2,8 @@ import { readFileSync } from 'fs';
 import { Tokenizer } from './frontend/Tokenizer';
 import { Parser } from './frontend/parser';
 import { printAstTree, toDot } from './frontend/abstractSyntaxTree';
+import { IRGenerator } from './backend/IRGenerator';
+import { Runner } from './backend/Runner';
 
 
 // Read command-line arguments
@@ -24,8 +26,15 @@ try {
 // Create tokenizer and get tokens
 const tokenizer = new Tokenizer(code);
 const tokens = tokenizer.tokenize();
-console.log(tokens);
+// console.log(tokens);
 const parser = new Parser(tokens);
 const ast = parser.parse();
-console.log(toDot(ast));
-printAstTree(ast)
+// printAstTree(ast)
+
+const irGenerator = new IRGenerator();
+irGenerator.generateIrFromAst(ast);
+const instructions = irGenerator.getInstructions();
+
+const runner = new Runner(instructions);
+runner.run();
+
