@@ -33,19 +33,17 @@ export class Parser {
     {
         var currentToken = this.advance();
         if(currentToken.type === TOKEN_TYPE.BOOL)
-        {   console.log("in parseLiteral bool");
+        {
             if(!["true","false"].includes(currentToken.value?.toLowerCase()??""))
             {
                 throw new Error(`Expected Bool but got ${currentToken.value} `);
             }
             let currentValue = currentToken.value?.toLowerCase() === "true";
-	    var BoolNode = new BoolLiteral(this.id(), currentValue);
-            return BoolNode;
+            return new BoolLiteral(this.id(), currentValue);
         }
         else if(currentToken.type === TOKEN_TYPE.TEXT)
         {
-	    var TextNode = new TextLiteral(this.id(), currentToken.value ?? "");
-            return TextNode;
+            return new TextLiteral(this.id(), currentToken.value ?? "");
         }
         else if(currentToken.type === TOKEN_TYPE.NUMBER)
         {
@@ -54,13 +52,11 @@ export class Parser {
             const intRegex = /^\d+$/
             if(intRegex.test(currentValue))
             {
-		var NumberNode = new NumberLiteral(this.id(),Number.parseInt(currentValue));
-		return NumberNode;
+                return new NumberLiteral(this.id(),Number.parseInt(currentValue))
             }
             else if(floatRegex.test(currentValue))
             {
-		var NumberNode = new NumberLiteral(this.id(),Number.parseFloat(currentValue)) 
-		return NumberNode;
+                return new NumberLiteral(this.id(),Number.parseFloat(currentValue))
             }
             else {
                 throw new Error(`Invalid number ${currentValue} encounters at line ${currentToken.line} col ${currentToken.col}`)
@@ -82,32 +78,26 @@ export class Parser {
         this.expect(TOKEN_TYPE.PUNCTUATION,';');
         if(value instanceof BoolLiteral )
         {
-            console.log("in parseVariableDeclaration bool",value,identifier);
-	    var newVariable = new VariableDeclaration("","bool",identifier.value as string);
-	    newVariable.body = [value]
-	    return newVariable;
+            return new VariableDeclaration("","bool")
         }
         else if(value instanceof NumberLiteral)
-        {
-	    var newVariable = new VariableDeclaration("","number",identifier.value as string);
-	    newVariable.body = [value]
-	    return newVariable;
+        {   
+            return new VariableDeclaration("","number")
         }
         else if(value instanceof TextLiteral)
         {
-	    var newVariable = new VariableDeclaration("","text",identifier.value as string);
-	    newVariable.body = [value]
-	    return newVariable;
+            return new VariableDeclaration("",'text')
         }
         else{
             throw new Error(`INvalid variable declaration at line ${keyword.line} col ${keyword.col}, Invalid value is assigned or resulting expression is of different type`)
         }
+        
     }
 
     private parseExpression(): AstTreeNode | null
     {
         const currentToken = this.peek();
-        //console.log("currentToken",currentToken.type,currentToken.value,currentToken.col,currentToken.line);
+        //console.log("currentToken",currentToken.value,currentToken.col,currentToken.line);
         if(currentToken.type===TOKEN_TYPE.KEYWORD)
         {
             switch(currentToken.value)
@@ -123,13 +113,8 @@ export class Parser {
         {
             return this.parseLiteral();
         }
-	else if(currentToken.type===TOKEN_TYPE.EOF)
-	{
-	 this.advance();
-	 return null;
-	}
         else{
-            throw new Error(`Unexpected Expression ${currentToken.type} ${currentToken.value} arrived at line ${currentToken.line} col ${currentToken.col}`)
+            throw new Error(`Unexpected Expression ${currentToken.type}  arrived at line ${currentToken.line} col ${currentToken.col}`)
         }
         return null;
     }
@@ -156,6 +141,7 @@ export class Parser {
             if(statement){
                 programNode.body.push(statement)
             }
+            this.advance();
         }
         return programNode
     }

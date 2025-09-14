@@ -1,13 +1,21 @@
 import { readFileSync } from 'fs';
 import { Tokenizer } from './frontend/Tokenizer';
 import { Parser } from './frontend/parser';
-
+import  {Generator} from './backend/generator';
+import fs from "fs"
 // Read command-line arguments
 const args = process.argv.slice(2);
 if (args.length < 1) {
   console.error('Usage: node main.js <file.qrk>');
   process.exit(1);
 }
+var registereSize = 4;
+const arch = process.arch;
+if(arch === "x64" || arch === "arm64")
+{
+  registereSize = 8;
+}
+
 
 const filePath = args[0];
 let code: string;
@@ -22,6 +30,13 @@ try {
 // Create tokenizer and get tokens
 const tokenizer = new Tokenizer(code);
 const tokens = tokenizer.tokenize();
+
+console.log("Tokens:", tokens);
+
 const parser = new Parser(tokens);
 const ast = parser.parse();
-console.log(ast);
+
+const generator = new Generator(registereSize);
+const asmCode = generator.generate(ast);
+fs.writeFileSync(filePath.split(".").reverse()[1].replace("/","")+".asm", asmCode, "utf-8");
+console.log(generator.generate(ast));
