@@ -121,7 +121,10 @@ export class TokenFactory {
     static createColon(line: number, col: number): Token {
         return { type: 'punctuation', value: ':', line, col };
     }
+    static createExit(line: number, col: number): Token {
+        return { type: 'keyword', value: 'exit', line, col };
+    }
     static createEOF(line: number, col: number): Token {
-        return { type: 'eof', line, col };
+        return { type: 'eof', line, col,value:'eof' };
     }
 }
