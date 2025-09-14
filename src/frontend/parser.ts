@@ -110,6 +110,7 @@ export class Parser {
 	    var newVariable = new VariableDeclaration("","number",identifier.value as string);
 	    newVariable.body = [value]
 	    return newVariable;
+
         }
         else if(value instanceof TextLiteral)
         {
@@ -117,83 +118,23 @@ export class Parser {
 	    newVariable.body = [value]
 	    return newVariable;
         }
-
-        return new IfExpression(this.id(), condition as AstTreeNode, thenBranch, elseBranch as AstTreeNode[])
-    }
-    private parsePrimary(): AstTreeNode {
-        const token = this.peek();
-
-        if ([TOKEN_TYPE.NUMBER, TOKEN_TYPE.BOOL, TOKEN_TYPE.TEXT].includes(token.type)) {
-            return this.parseLiteral();
-        }
-
-        if (token.type === TOKEN_TYPE.IDENTIFIER) {
-            const idToken = this.advance();
-            return {
-                id: this.id(),
-                type: "identifier",
-                name: idToken.value
-            };
+        else{
+            throw new Error(`INvalid variable declaration at line ${keyword.line} col ${keyword.col}, Invalid value is assigned or resulting expression is of different type`)
         }
     }
-
-    private parseExit(): AstTreeNode {
-        const exitToken = this.advance();
-        this.expect(TOKEN_TYPE.PUNCTUATION, '(');
-        var exitCode = this.parseExpression();
-        this.expect(TOKEN_TYPE.PUNCTUATION, ')');
-        this.expect(TOKEN_TYPE.PUNCTUATION, ';');
-        console.log("Exit token", exitToken);
-        console.log("next token",this.peek());
-        console.log("exit code",exitCode);
-        var exitNode = new ExitStatement("", exitCode as AstTreeNode);
-        exitNode.body = [exitCode as AstTreeNode];
-        return exitNode;
-    }
-
-
-    private parseComparison(): AstTreeNode {
-        let left = this.parsePrimary();
-        while (
-            this.peek().type === TOKEN_TYPE.OPERATOR &&
-            ['=', '!', '>=', '<=', '>', '<'].includes(this.peek().value ?? "")
-        ) {
-
-            var operator = this.advance().value ?? "";
-            const right = this.parsePrimary();
-
-            left = {
-                id: this.id(),
-                type: "LogicalExpression",
-                operator,
-                left,
-                right
-            };
-        }
-
-        return left;
-    }
-
 
     private parseExpression(): AstTreeNode | null {
         const currentToken = this.peek();
-
-        if (currentToken.type === TOKEN_TYPE.KEYWORD) {
-            switch (currentToken.value) {
+        //console.log("currentToken",currentToken.type,currentToken.value,currentToken.col,currentToken.line);
+        if(currentToken.type===TOKEN_TYPE.KEYWORD)
+        {
+            switch(currentToken.value)
+            {
                 case 'number':
                 case 'text':
                 case 'bool':
                 case 'char':
                     return this.parseVariableDeclaration();
-                case 'if':
-                    return this.parseIfExpression();
-                case 'return':
-                    return this.parseReturnStatement();
-                case 'true':
-                case 'false':
-                    return this.parsePrimary();
-                case 'exit':
-                    return this.parseExit();
                 default:
                     throw new Error(`Unexpected Keyword is encountered ${currentToken.value}`);
             }
@@ -201,16 +142,13 @@ export class Parser {
         else if ([TOKEN_TYPE.BOOL, TOKEN_TYPE.CHAR, TOKEN_TYPE.TEXT, TOKEN_TYPE.NUMBER].includes(currentToken.type)) {
             return this.parseLiteral();
         }
-
-        else if (currentToken.type === TOKEN_TYPE.IDENTIFIER) {
-            return this.parseComparison();
-        }
-        else if (currentToken.type === "eof") {
-            return new EofNode();
-        }
-
-        else {
-            throw new Error(`Unexpected Expression ${currentToken.type + ' ' + currentToken.value} arrived at line ${currentToken.line} col ${currentToken.col}`)
+	else if(currentToken.type===TOKEN_TYPE.EOF)
+	{
+	 this.advance();
+	 return null;
+	}
+        else{
+            throw new Error(`Unexpected Expression ${currentToken.type} ${currentToken.value} arrived at line ${currentToken.line} col ${currentToken.col}`)
         }
     }
     private id(): string {
@@ -227,24 +165,12 @@ export class Parser {
     }
 
     parse(): ProgramNode {
-        var programNode = new ProgramNode();
-        while (!this.isAtEnd()) {
-            try {
-                var statement = this.parseExpression();
-                if (statement) {
-                    programNode.body.push(statement);
-                    if(statement.type==='EOF')
-                    {
-                        break;
-                    }
-                }
-                else{
-                    console.log("me nalla hu")
-                }
-
-            } catch (err) {
-                console.error(err)
-                this.advance();
+        var programNode = new ProgramNode ();
+        while(!this.isAtEnd())
+        {
+            var statement = this.parseExpression();
+            if(statement){
+                programNode.body.push(statement)
             }
         }
         return programNode

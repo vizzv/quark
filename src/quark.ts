@@ -3,6 +3,7 @@ import { Tokenizer } from './frontend/Tokenizer';
 import { Parser } from './frontend/parser';
 import  {Generator} from './backend/generator';
 import fs from "fs"
+
 // Read command-line arguments
 const args = process.argv.slice(2);
 if (args.length < 1) {
@@ -15,6 +16,7 @@ if(arch === "x64" || arch === "arm64")
 {
   registereSize = 8;
 }
+
 
 
 const filePath = args[0];
