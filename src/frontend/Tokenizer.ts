@@ -3,7 +3,6 @@ import { TokenType, Token, TokenFactory } from './token'
 const keywords = new Set([
     'var', 'const',
     'number', 'text', 'bool', 'char',
-    'true', 'false',
     'if', 'else',
     'for', 'while',
     'switch', 'case', 'default', 'continue', 'break',
@@ -91,6 +90,9 @@ export class Tokenizer {
     isSingleQuote(char: string): boolean {
         return char === "'";
     }
+    isBoolean(char: string): boolean {
+        return /^(true|false)$/i.test(char);
+    }
 
     addToken(type: TokenType, value: string) {
         this.tokens.push({ type, value, line: this.line, col: this.col });
@@ -120,7 +122,11 @@ export class Tokenizer {
 
                 else if (this.isKeyword(word)) {
                     this.tokens.push(TokenFactory.createKeyword(word, this.line, this.col));
-                } else {
+                } 
+		else if(this.isBoolean(word)){
+		    this.tokens.push(TokenFactory.createBool(word,this.line,this.col));
+		}
+		else {
                     this.tokens.push(TokenFactory.createIdentifier(word, this.line, this.col));
                 }
                 continue;

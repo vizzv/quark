@@ -136,10 +136,11 @@ export class BoolLiteral extends AstTreeNode {
 export class VariableDeclaration extends AstTreeNode
 {
 
-    constructor(id:string,variableType:'text'|'number'|'bool'|'char') {
-        
+    constructor(id:string,variableType:'text'|'number'|'bool'|'char',identifier:string) {
+
         super('VariableDeclaration',id);
         this.variableType = variableType;
+        this.identifier = identifier;
     }
 }
 

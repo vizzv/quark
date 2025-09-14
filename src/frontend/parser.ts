@@ -29,25 +29,34 @@ export class Parser {
 
     private parseLiteral(): AstTreeNode {
         var currentToken = this.advance();
-        if (currentToken.type === TOKEN_TYPE.BOOL) {
-            if (!["true", "false"].includes(currentToken.value?.toLowerCase() ?? "")) {
+        if(currentToken.type === TOKEN_TYPE.BOOL)
+        {   console.log("in parseLiteral bool");
+            if(!["true","false"].includes(currentToken.value?.toLowerCase()??""))
+            {
                 throw new Error(`Expected Bool but got ${currentToken.value} `);
             }
             let currentValue = currentToken.value?.toLowerCase() === "true";
-            return new BoolLiteral(this.id(), currentValue);
+	    var BoolNode = new BoolLiteral(this.id(), currentValue);
+            return BoolNode;
         }
-        else if (currentToken.type === TOKEN_TYPE.TEXT) {
-            return new TextLiteral(this.id(), currentToken.value ?? "");
+        else if(currentToken.type === TOKEN_TYPE.TEXT)
+        {
+	    var TextNode = new TextLiteral(this.id(), currentToken.value ?? "");
+            return TextNode;
         }
         else if (currentToken.type === TOKEN_TYPE.NUMBER) {
             let currentValue = currentToken.value ?? "";
             const floatRegex = /^(?:\d+\.\d*|\d*\.\d+|\d+)$/;
             const intRegex = /^\d+$/
-            if (intRegex.test(currentValue)) {
-                return new NumberLiteral(this.id(), Number.parseInt(currentValue))
+            if(intRegex.test(currentValue))
+            {
+		var NumberNode = new NumberLiteral(this.id(),Number.parseInt(currentValue));
+		return NumberNode;
             }
-            else if (floatRegex.test(currentValue)) {
-                return new NumberLiteral(this.id(), Number.parseFloat(currentValue))
+            else if(floatRegex.test(currentValue))
+            {
+		var NumberNode = new NumberLiteral(this.id(),Number.parseFloat(currentValue)) 
+		return NumberNode;
             }
             else {
                 throw new Error(`Invalid number ${currentValue} encounters at line ${currentToken.line} col ${currentToken.col}`)
@@ -87,77 +96,26 @@ export class Parser {
         }
         this.expect(TOKEN_TYPE.OPERATOR, '=');
         const value = this.parseExpression();
-        this.expect(TOKEN_TYPE.PUNCTUATION, ';');
-        const expectedType = keyword.value ?? "";
-        const actualType = this.getType(value as AstTreeNode);
 
-        if (expectedType !== actualType) {
-            throw new Error(
-                `Type mismatch in variable declaration: expected ${expectedType}, got ${actualType}`
-            );
+        this.expect(TOKEN_TYPE.PUNCTUATION,';');
+        if(value instanceof BoolLiteral )
+        {
+            console.log("in parseVariableDeclaration bool",value,identifier);
+	    var newVariable = new VariableDeclaration("","bool",identifier.value as string);
+	    newVariable.body = [value]
+	    return newVariable;
         }
-
-        const varDeclare = new VariableDeclaration(expectedType, expectedType as "text" | "number" | "bool" | "char");
-        varDeclare.name = identifier.value;
-        varDeclare.body = [value as AstTreeNode];
-        return varDeclare;
-
-
-        // if (value instanceof BoolLiteral) {
-
-        //     const varDeclare = new VariableDeclaration(keyword.value ?? "", "bool");
-        //     varDeclare.name = identifier.value;
-        //     varDeclare.body = [] as AstTreeNode[];
-        //     varDeclare.body.push(value)
-        //     return varDeclare;
-        // }
-        // else if (value instanceof NumberLiteral) {
-        //     const varDeclare = new VariableDeclaration(keyword.value ?? "", "number")
-        //     varDeclare.name = identifier.value;
-        //     varDeclare.body = [] as AstTreeNode[];
-        //     varDeclare.body.push(value)
-        //     return varDeclare;
-        // }
-        // else if (value instanceof TextLiteral) {
-        //     const varDeclare = new VariableDeclaration(keyword.value ?? "", "text")
-        //     varDeclare.name = identifier.value;
-        //     varDeclare.body = [] as AstTreeNode[];
-        //     varDeclare.body.push(value)
-        //     return varDeclare;
-        // }
-        // else {
-        //     throw new Error(`Invalid variable declaration ${keyword.value} at line ${keyword.line} col ${keyword.col}, Invalid value is assigned or resulting expression is of different type`)
-        // }
-
-    }
-    private parseIfExpression(): AstTreeNode | null {
-        this.expect(TOKEN_TYPE.KEYWORD, 'if');
-        this.expect(TOKEN_TYPE.PUNCTUATION, '(');
-        const condition = this.parseExpression();
-        this.expect(TOKEN_TYPE.PUNCTUATION, ')');
-        this.expect(TOKEN_TYPE.PUNCTUATION, '{');
-
-        const thenBranch: AstTreeNode[] = [];
-        while (this.peek().value !== '}') {
-            try {
-                var xyz = this.parseExpression();
-                thenBranch.push(xyz as AstTreeNode);
-            } catch (err) {
-                console.error("Error in if-then branch:", err);
-                this.advance(); // Advance to avoid infinite loop
-            }
+        else if(value instanceof NumberLiteral)
+        {
+	    var newVariable = new VariableDeclaration("","number",identifier.value as string);
+	    newVariable.body = [value]
+	    return newVariable;
         }
-        this.expect(TOKEN_TYPE.PUNCTUATION, '}');
-        let elseBranch: AstTreeNode[] | undefined;
-        if (this.peek().type === TOKEN_TYPE.KEYWORD && this.peek().value === 'else') {
-            this.advance();
-            this.expect(TOKEN_TYPE.PUNCTUATION, '{');
-            elseBranch = [];
-
-            while (this.peek().value !== '}') {
-                elseBranch?.push(this.parseExpression() as AstTreeNode);
-            }
-            this.expect(TOKEN_TYPE.PUNCTUATION, '}');
+        else if(value instanceof TextLiteral)
+        {
+	    var newVariable = new VariableDeclaration("","text",identifier.value as string);
+	    newVariable.body = [value]
+	    return newVariable;
         }
 
         return new IfExpression(this.id(), condition as AstTreeNode, thenBranch, elseBranch as AstTreeNode[])
@@ -177,18 +135,6 @@ export class Parser {
                 name: idToken.value
             };
         }
-        throw new Error(`Unexpected token '${token.value}' at line ${token.line}`);
-    }
-    private parseReturnStatement(): AstTreeNode {
-        const returnToken = this.advance();
-        const value = this.parseExpression();
-        this.expect(TOKEN_TYPE.PUNCTUATION, ';');
-
-        return {
-            id: this.id(),
-            type: 'ReturnStatement',
-            value
-        };
     }
 
     private parseExit(): AstTreeNode {
@@ -231,6 +177,7 @@ export class Parser {
 
     private parseExpression(): AstTreeNode | null {
         const currentToken = this.peek();
+
         if (currentToken.type === TOKEN_TYPE.KEYWORD) {
             switch (currentToken.value) {
                 case 'number':
@@ -254,6 +201,7 @@ export class Parser {
         else if ([TOKEN_TYPE.BOOL, TOKEN_TYPE.CHAR, TOKEN_TYPE.TEXT, TOKEN_TYPE.NUMBER].includes(currentToken.type)) {
             return this.parseLiteral();
         }
+
         else if (currentToken.type === TOKEN_TYPE.IDENTIFIER) {
             return this.parseComparison();
         }
