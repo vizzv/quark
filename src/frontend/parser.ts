@@ -1,36 +1,33 @@
-import { AstTreeNode, ProgramNode,ASTNodeType, BoolLiteral, TextLiteral, NumberLiteral, VariableDeclaration } from "./abstractSyntaxTree";
+import { stat } from "fs";
+import { AstTreeNode, ProgramNode, ASTNodeType, BoolLiteral, TextLiteral, NumberLiteral, VariableDeclaration, IfExpression, LogicalExpression, EofNode, ExitStatement } from "./abstractSyntaxTree";
 import { Token, TOKEN_TYPE } from "./token";
 
 export class Parser {
     private tokens: Token[] = [];
-    private index:number =0;
+    private index: number = 0;
     constructor(tokens: Token[] = []) {
         this.tokens = tokens;
         this.index = 0;
     }
-    private isAtEnd():boolean
-    {
-        return this.index>=this.tokens.length;
+    private isAtEnd(): boolean {
+        return this.index >= this.tokens.length;
     }
 
-    private peek(offset=0) :Token
-    {
+    private peek(offset = 0): Token {
         return this.tokens[this.index + offset] || '\0';
     }
-    private advance() :Token
-    {
-        return  this.tokens[this.index++];
+    private advance(): Token {
+        return this.tokens[this.index++];
     }
     private expect(type: string, value?: string): Token {
-    const token = this.advance();
-    if (token.type !== type || (value && token.value !== value)) {
-        throw new Error(`Expected ${type} '${value}', but got ${token.type} '${token.value}'`);
-    }
-    return token;
+        const token = this.advance();
+        if (token.type !== type || (value && token.value !== value)) {
+            throw new Error(`Expected ${type} '${value}', but got ${token.type} '${token.value}'`);
+        }
+        return token;
     }
 
-    private parseLiteral():AstTreeNode
-    {
+    private parseLiteral(): AstTreeNode {
         var currentToken = this.advance();
         if(currentToken.type === TOKEN_TYPE.BOOL)
         {   //console.log("in parseLiteral bool");
@@ -47,9 +44,8 @@ export class Parser {
 	    var TextNode = new TextLiteral(this.id(), currentToken.value ?? "");
             return TextNode;
         }
-        else if(currentToken.type === TOKEN_TYPE.NUMBER)
-        {
-            let currentValue = currentToken.value??"";
+        else if (currentToken.type === TOKEN_TYPE.NUMBER) {
+            let currentValue = currentToken.value ?? "";
             const floatRegex = /^(?:\d+\.\d*|\d*\.\d+|\d+)$/;
             const intRegex = /^\d+$/
             if(intRegex.test(currentValue))
@@ -68,17 +64,39 @@ export class Parser {
         }
         throw new Error(`Unsupported literal type: ${currentToken.type} at line ${currentToken.line} col ${currentToken.col}`);
     }
+    private getType(node: AstTreeNode): string {
 
-    private parseVariableDeclaration():AstTreeNode
-    {
+        switch (node.type) {
+            case "BoolLiteral":
+                return "bool";
+            case "NumberLiteral":
+                return "number";
+            case "TextLiteral":
+                return "text";
+            case "IfExpression": {
+                const thenTypes = node.thenBranch.map((n: AstTreeNode) => this.getType(n));
+                const elseTypes = node.elseBranch?.map((n: AstTreeNode) => this.getType(n)) ?? [];
+                const allTypes = new Set([...thenTypes, ...elseTypes]);
+                if (allTypes.size === 1) return [...allTypes][0];
+                throw new Error(`Mismatched return types in if-expression`);
+            }
+            case "ReturnStatement":
+                return this.getType(node.value as BoolLiteral);
+            default:
+                throw new Error(`Cannot determine type of node type: ${node.type}`);
+        }
+    }
+
+
+    private parseVariableDeclaration(): AstTreeNode {
         const keyword = this.advance();
         const identifier = this.advance();
-        if(identifier.type !== TOKEN_TYPE.IDENTIFIER)
-        {
+        if (identifier.type !== TOKEN_TYPE.IDENTIFIER) {
             throw new Error(`Expected identifier after ${keyword.value} at line ${identifier.line} col ${identifier.col} identifier: ${identifier}`);
         }
-        this.expect(TOKEN_TYPE.OPERATOR,'=');
+        this.expect(TOKEN_TYPE.OPERATOR, '=');
         const value = this.parseExpression();
+
         this.expect(TOKEN_TYPE.PUNCTUATION,';');
         if(value instanceof BoolLiteral )
         {
@@ -104,8 +122,7 @@ export class Parser {
         }
     }
 
-    private parseExpression(): AstTreeNode | null
-    {
+    private parseExpression(): AstTreeNode | null {
         const currentToken = this.peek();
         //console.log("currentToken",currentToken.type,currentToken.value,currentToken.col,currentToken.line);
         if(currentToken.type===TOKEN_TYPE.KEYWORD)
@@ -117,10 +134,11 @@ export class Parser {
                 case 'bool':
                 case 'char':
                     return this.parseVariableDeclaration();
+                default:
+                    throw new Error(`Unexpected Keyword is encountered ${currentToken.value}`);
             }
         }
-        else if([TOKEN_TYPE.BOOL,TOKEN_TYPE.CHAR,TOKEN_TYPE.TEXT,TOKEN_TYPE.NUMBER].includes(currentToken.type))
-        {
+        else if ([TOKEN_TYPE.BOOL, TOKEN_TYPE.CHAR, TOKEN_TYPE.TEXT, TOKEN_TYPE.NUMBER].includes(currentToken.type)) {
             return this.parseLiteral();
         }
 	else if(currentToken.type===TOKEN_TYPE.EOF)
@@ -131,19 +149,16 @@ export class Parser {
         else{
             throw new Error(`Unexpected Expression ${currentToken.type} ${currentToken.value} arrived at line ${currentToken.line} col ${currentToken.col}`)
         }
-        return null;
     }
-    private id():string
-    {
+    private id(): string {
         const randomArray = [
-            ...'abcdefrstngh2lmQR7HIJKLMNOPuvwxyz',
-            ...'ABCDijkVWXYZ',
-            ...'01EFSTUopqG345689'
+            ...'abcfrstngh2lmQR7HIJKLMNOPuvwxyz',
+            ...'ABCDijk68VWXYZ',
+            ...'01EFSTUopqG34de59'
         ];
         var uniq_id = "";
-        for(var i=0;i<16;i++)
-        {
-            uniq_id += randomArray[(Math.floor(Math.random()*895655) ) % randomArray.length];
+        for (var i = 0; i < 16; i++) {
+            uniq_id += randomArray[(Math.floor(Math.random() * 895655)) % randomArray.length];
         }
         return uniq_id;
     }

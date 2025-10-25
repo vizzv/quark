@@ -8,7 +8,8 @@ const keywords = new Set([
     'switch', 'case', 'default', 'continue', 'break',
     'function', 'class', 'new', 'this',
     'absorb', 'radiate', 'null',
-    'void', 'return'
+    'void', 'return',
+    'exit'
 ]);
 
 const operators = new Set([
@@ -109,8 +110,17 @@ export class Tokenizer {
                 while (this.isAlphanumeric(this.peek())) {
                     word += this.advance();
                 }
+                if(word.toLowerCase() === 'exit')
+                {
+                    this.tokens.push(TokenFactory.createExit(this.line,this.col));
+                    continue;
+                }
+                if(["true","false"].includes(word.toLowerCase()))
+                {
+                    this.tokens.push(TokenFactory.createBool(word.toLowerCase(),this.line,this.col));
+                }
 
-                if (this.isKeyword(word)) {
+                else if (this.isKeyword(word)) {
                     this.tokens.push(TokenFactory.createKeyword(word, this.line, this.col));
                 } 
 		else if(this.isBoolean(word)){
@@ -176,15 +186,13 @@ export class Tokenizer {
             }
             else if (this.isSemiColon(char)) {
                 this.tokens.push(TokenFactory.createSemiColon(this.line, this.col));
-                while (!this.isAtEnd() && !(this.peek() === '\n')) {
-                    this.advance();
-                }
             }
             else if(char === '<')
             {
                 if(this.peek(1) === '=')
                 {
                     this.tokens.push(TokenFactory.createLessThanOrEqual(this.line,this.col))
+                    this.advance()
                 }
                 else {
                 this.tokens.push(TokenFactory.createLessThan(this.line,this.col))
@@ -195,6 +203,7 @@ export class Tokenizer {
                 if(this.peek(1) === '=')
                 {
                     this.tokens.push(TokenFactory.createGreaterThanOrEqual(this.line,this.col))
+                    this.advance()
                 }
                 else {
                 this.tokens.push(TokenFactory.createGreaterThan(this.line,this.col))

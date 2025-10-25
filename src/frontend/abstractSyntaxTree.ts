@@ -3,19 +3,25 @@ import { TOKEN_TYPE, TokenType } from "./token";
 export type ASTNodeType =
     | 'Program'
     | 'VariableDeclaration'
+    | 'identifier'
     | 'ArithmeticExpression'
     | 'RelationalExpression'
+    | 'IfExpression'
     | 'LogicalExpression'
     | 'BitwiseExpression' 
     | 'AssigmentExpression'
     | 'SpecialAssignmentExpression'
     | 'NumberLiteral'
-    | 'StringLiteral'
+    | 'TextLiteral'
     | 'BoolLiteral'
+    | 'ReturnStatement'
+    | 'ExitStatement'
+    | 'EOF'
 
 export interface AstNode {
     type: ASTNodeType;
     id: string;
+    body?:AstNode[];
     [key: string]: any;
 }
 
@@ -25,6 +31,7 @@ export interface AstNode {
     [key: string]: any;
     type: ASTNodeType;
     id: string;
+    body?: AstTreeNode[];
     constructor(type: ASTNodeType, id: string, extraProps: { [key: string]: any } = {}) {
         this.type = type;
         this.id = id;
@@ -42,7 +49,13 @@ export class ProgramNode extends AstTreeNode {
 
 }
 
-
+export class EofNode extends AstTreeNode
+{
+    constructor()
+    {
+        super('EOF','eof');
+    }
+}
 
 export class LogicalExpression extends AstTreeNode {
     constructor(id:string) {
@@ -52,7 +65,6 @@ export class LogicalExpression extends AstTreeNode {
 export class ArithmeticExpression extends AstTreeNode {
     value:number
     constructor(id:string,value:number) {
-        
         super('ArithmeticExpression',id);
         this.value = value;
     }
@@ -106,7 +118,7 @@ export class TextLiteral extends AstTreeNode {
     value:string
     constructor(id:string,value:string) {
         
-        super('StringLiteral',id);
+        super('TextLiteral',id);
         this.value = value;
     }
 }
@@ -130,4 +142,63 @@ export class VariableDeclaration extends AstTreeNode
         this.variableType = variableType;
         this.identifier = identifier;
     }
+}
+
+export class IfExpression extends AstTreeNode
+{
+    elseBranch :AstTreeNode[] | null
+    ifCondition :LogicalExpression
+    constructor(id:string,ifCondition:LogicalExpression,thenBlock:AstTreeNode[],elseBlock:AstTreeNode[] | null)
+    {
+        super('IfExpression',id);
+        this.body = [];
+        this.ifCondition = ifCondition;
+        this.elseBranch = elseBlock;
+        this.thenBranch = thenBlock;
+    }
+}
+
+export class ExitStatement extends AstTreeNode
+{
+    constructor(id:string,statementValue:AstTreeNode)
+    {
+        super('ExitStatement',id);
+        this.body =[statementValue];
+    }
+}
+
+
+export function printAstTree(node: AstTreeNode, indent = ''): void {
+    console.log(`${indent}${node.type}${node.name ? ` (${node.name})` : ''}`);
+
+    if (node instanceof IfExpression) {
+        console.log(`${indent}  ├─ Condition:`);
+        printAstTree(node.ifCondition, indent + '  │   ');
+        console.log(`${indent}  ├─ Then:`);
+        node.body?.forEach(child => printAstTree(child, indent + '  │   '));
+        if (node.elseBlock) {
+            console.log(`${indent}  └─ Else:`);
+            node.elseBlock.forEach((child:AstTreeNode) => printAstTree(child as AstTreeNode, indent + '      '));
+        }
+    } else if (node.body && Array.isArray(node.body)) {
+        node.body.forEach(child => printAstTree(child, indent + '  '));
+    }
+}
+
+export function toDot(node: AstTreeNode, parentId?: string, lines: string[] = []): string[] {
+    const currentId = node.id;
+    lines.push(`${currentId} [label="${node.type}${node.name ? `\\n${node.name}` : ''}"];`);
+    if (parentId) {
+        lines.push(`${parentId} -> ${currentId};`);
+    }
+
+    if (node instanceof IfExpression) {
+        toDot(node.ifCondition, currentId, lines);
+        node.body?.forEach(child => toDot(child, currentId, lines));
+        node.elseBlock?.forEach((child:AstTreeNode) => toDot(child, currentId, lines));
+    } else if (node.body) {
+        node.body.forEach(child => toDot(child, currentId, lines));
+    }
+
+    return lines;
 }
