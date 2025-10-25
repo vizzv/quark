@@ -41,7 +41,7 @@ export class MSILGenerator {
       il += `    ldc.i4.${tree.value ? "1" : "0"}\n`
     }
 
-    else if (tree.type === "StringLiteral") {
+    else if (tree.type === "TextLiteral") {
       il += `    ldstr "${tree.value}"\n`
     }
 
