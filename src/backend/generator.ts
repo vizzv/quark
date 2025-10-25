@@ -32,6 +32,19 @@ export class MSILGenerator {
         il += exprIL
       }
     }
+    else if (tree.type === "VariableReassignment") {
+      const varName = tree.identifier
+      const varIndex = this.locals.findIndex(local => local.endsWith(` ${varName}`))
+      if (varIndex === -1) {
+        throw new Error(`Variable ${varName} not found for reassignment.`)
+      }
+      
+      if (tree.value) {
+        let exprIL = this.generate(tree.value)   // generate IL for the new value
+        il += exprIL
+        il += `    stloc.${varIndex}\n`  // store the new value in the variable
+      }
+    }
 
     else if (tree.type === "NumberLiteral") {
       il += `    ldc.i4.s ${tree.value}\n`   // push value onto stack
