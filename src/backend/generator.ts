@@ -1,57 +1,89 @@
-import {AstTreeNode} from "../frontend/abstractSyntaxTree"
+import { AstTreeNode } from "../frontend/abstractSyntaxTree"
 
-export class Generator {
-	platform = process.platform;
-	registerSize:number;
-	constructor(_registerSize:number=4) {
-		this.registerSize = _registerSize;
-	}
-	 generate=(tree:AstTreeNode):string=>
-	{
-		var instructions:string = ""
+export class MSILGenerator {
+  private localIndex = 0
+  private locals: string[] = []
 
-		var currentNode:AstTreeNode|null=tree;
-		var endOfInstructions:string="";
-		    if (process.platform === "linux") {
-      endOfInstructions += "    mov rax, 60\n"; // syscall: exit
-      endOfInstructions += "    xor rdi, rdi\n"; // status = 0
-      endOfInstructions += "    syscall\n";
-    } else if (process.platform === "win32") {
-      endOfInstructions += "    ret\n"; // until you add ExitProcess
+  generate = (tree: AstTreeNode): string => {
+    let il = ""
+
+    if (tree.type === "Program") {
+      il += ".assembly ToyProgram {}\n"
+      il += ".method static void main() cil managed\n{\n"
+      il += "  .entrypoint\n"
+      il += "  .maxstack 8\n"
+      //console.log("Generating IL for node type:", tree)
     }
-		if(currentNode.type === "Program")
-		{
-			   if (this.platform === "win32") instructions += "format PE console\n";
-			   if(this.platform === "linux") instructions += "format ELF64 executable\n";
-			   if(this.platform === "darwin") instructions += "format MACHO64 x86-64\n";
 
-				//instructions += "segment readable writeable\n\n";
-				instructions += "entry start\n\n";
-				if(this.platform === "win32") instructions += "section '.text' code readable executable\n\n";
-				//if(this.platform === "linux") instructions += "section '.text' executable\n\n";
-				instructions += "start:\n";
-					}
-		else if(currentNode.type === "VariableDeclaration"){
-			//TODO : SUPPORT FOR VARIABE DECLARATION
+    // Traverse child nodes
 
-			instructions += `    ; Variable Declaration of type ${currentNode.varType} with identifier ${currentNode.identifier}\n`;
-		}
-		else{
-			instructions += `    ; Unhandled node type: ${currentNode.type}\n`;
-		}
-		if(!tree.body || tree.body.length===0)
-		{
-			return instructions;
-		}
-		for(var i=0;i<tree.body.length;i++)
-		{
-			currentNode=tree.body[i];
-			instructions += this.generate(currentNode as AstTreeNode);
-		}
-		if(tree.type==="Program")
-		{
-			instructions += endOfInstructions;
-		}
-		return instructions;
-	}
+
+    else if (tree.type === "VariableDeclaration") {
+      const varIndex = this.localIndex++
+      const ilType = this.mapType(tree.variableType)
+      this.locals.push(`    [${varIndex}] ${ilType} ${tree.identifier}`)
+      
+      if (tree.body && tree.body.length > 0) {
+        let exprIL = ""
+        for (const node of tree.body) {
+          exprIL += this.generate(node)   // generate IL for expressions
+        }
+        exprIL += `    stloc.${varIndex}\n`
+        il += exprIL
+      }
+    }
+
+    else if (tree.type === "NumberLiteral") {
+      il += `    ldc.i4.s ${tree.value}\n`   // push value onto stack
+    }
+
+    else if (tree.type === "BoolLiteral") {
+      il += `    ldc.i4.${tree.value ? "1" : "0"}\n`
+    }
+
+    else if (tree.type === "StringLiteral") {
+      il += `    ldstr "${tree.value}"\n`
+    }
+
+
+    //console.log("Current IL:\n", tree.type, "\n", il)
+    if (tree.type === "Program") {
+      // locals section
+      
+      if (tree.body) {
+        for (const node of tree.body) {
+          il += this.generate(node)
+        }
+      }
+
+      if (this.locals.length > 0) {
+        //console.log("Generating locals section")
+        const localsDecl = this.locals.join(",\n")
+        //console.log("Locals Declaration:\n", localsDecl.split("\n"))
+        il = il.replace(
+          "{\n  .entrypoint",
+          `{\n  .entrypoint\n  .locals init (\n${localsDecl}\n  )`
+        )
+      }
+
+      il += "  ret\n}\n"
+    }
+
+    return il
+  }
+
+  private mapType(type: string): string {
+    switch (type) {
+      case "number":
+        return "int32"
+      case "bool":
+        return "bool"
+      case "text":
+        return "string"
+      default:
+        return "object"
+    }
+  }
+
 }
+

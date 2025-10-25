@@ -1,9 +1,8 @@
 import { readFileSync } from 'fs';
 import { Tokenizer } from './frontend/Tokenizer';
 import { Parser } from './frontend/parser';
-import  {Generator} from './backend/generator';
+import  {MSILGenerator} from './backend/generator';
 import fs from "fs"
-
 // Read command-line arguments
 const args = process.argv.slice(2);
 if (args.length < 1) {
@@ -16,7 +15,6 @@ if(arch === "x64" || arch === "arm64")
 {
   registereSize = 8;
 }
-
 
 
 const filePath = args[0];
@@ -38,7 +36,8 @@ console.log("Tokens:", tokens);
 const parser = new Parser(tokens);
 const ast = parser.parse();
 
-const generator = new Generator(registereSize);
+const generator = new MSILGenerator();
 const asmCode = generator.generate(ast);
-fs.writeFileSync(filePath.split(".").reverse()[1].replace("/","")+".asm", asmCode, "utf-8");
-console.log(generator.generate(ast));
+
+console.log("Generated Assembly Code:\n", asmCode);
+fs.writeFileSync(filePath.split(".").reverse()[1].replace("/","")+".il", asmCode, "utf-8");

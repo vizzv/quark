@@ -30,7 +30,7 @@ export class Parser {
     private parseLiteral(): AstTreeNode {
         var currentToken = this.advance();
         if(currentToken.type === TOKEN_TYPE.BOOL)
-        {   console.log("in parseLiteral bool");
+        {   //console.log("in parseLiteral bool");
             if(!["true","false"].includes(currentToken.value?.toLowerCase()??""))
             {
                 throw new Error(`Expected Bool but got ${currentToken.value} `);
@@ -100,7 +100,7 @@ export class Parser {
         this.expect(TOKEN_TYPE.PUNCTUATION,';');
         if(value instanceof BoolLiteral )
         {
-            console.log("in parseVariableDeclaration bool",value,identifier);
+            //console.log("in parseVariableDeclaration bool",value,identifier);
 	    var newVariable = new VariableDeclaration("","bool",identifier.value as string);
 	    newVariable.body = [value]
 	    return newVariable;
@@ -110,7 +110,6 @@ export class Parser {
 	    var newVariable = new VariableDeclaration("","number",identifier.value as string);
 	    newVariable.body = [value]
 	    return newVariable;
-
         }
         else if(value instanceof TextLiteral)
         {
