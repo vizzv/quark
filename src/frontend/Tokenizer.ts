@@ -162,8 +162,9 @@ export class Tokenizer {
                 while (!this.isAtEnd() && !this.isDoubleQuote(this.peek())) {
                     text += this.advance();
                 }
-                this.advance();
+                //this.advance();
                 this.tokens.push(TokenFactory.createText(text, this.line, this.col));
+                this.isSemiColon(this.peek()) && this.advance(); // Consume the closing quote
             }
             else if (this.isWhitespace(char)) {
                 this.advance();
