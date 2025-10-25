@@ -3,6 +3,7 @@ import { Tokenizer } from './frontend/Tokenizer';
 import { Parser } from './frontend/parser';
 import  {MSILGenerator} from './backend/generator';
 import fs from "fs"
+import chalk from 'chalk';  
 // Read command-line arguments
 const args = process.argv.slice(2);
 if (args.length < 1) {
@@ -28,6 +29,7 @@ try {
 }
 
 // Create tokenizer and get tokens
+try {
 const tokenizer = new Tokenizer(code);
 const tokens = tokenizer.tokenize();
 
@@ -41,3 +43,8 @@ const asmCode = generator.generate(ast);
 
 console.log("Generated Assembly Code:\n", asmCode);
 fs.writeFileSync(filePath.split(".").reverse()[1].replace("/","")+".il", asmCode, "utf-8");
+}
+catch (err: any) {
+  console.error(chalk.red.bold(`Error during compilation: ${err.message}`));
+  process.exit(1);
+}
