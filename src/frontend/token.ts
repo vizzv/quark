@@ -12,6 +12,28 @@ export const TOKEN_TYPE = {
     'WHITESPACE': 'whitespace',
     'EOF': 'eof',
 }
+
+export const Operators = {
+  EQL: '=',
+  EQLEQL: '==',
+  NOTEQL: '!=',
+  LESS: '<',
+  LESSEQL: '<=',
+  GRT: '>',
+  GRTEQL: '>=',
+  PLUS: '+',
+  PLUSEQL : '+=',
+  MINUS: '-',
+  MINUSEQL : '-=',
+  MUL: '*',
+  DIV: '/',
+  AND: '&&',
+  OR: '||',
+  NOT: '!',
+  ASSIGN: '=',
+  DIVEQL: '/=',
+  MULEQL: '*=',
+}
 export type TokenType = typeof TOKEN_TYPE[keyof typeof TOKEN_TYPE];
 
 export interface Token {

@@ -110,23 +110,21 @@ export class Tokenizer {
                 while (this.isAlphanumeric(this.peek())) {
                     word += this.advance();
                 }
-                if(word.toLowerCase() === 'exit')
-                {
-                    this.tokens.push(TokenFactory.createExit(this.line,this.col));
+                if (word.toLowerCase() === 'exit') {
+                    this.tokens.push(TokenFactory.createExit(this.line, this.col));
                     continue;
                 }
-                if(["true","false"].includes(word.toLowerCase()))
-                {
-                    this.tokens.push(TokenFactory.createBool(word.toLowerCase(),this.line,this.col));
+                if (["true", "false"].includes(word.toLowerCase())) {
+                    this.tokens.push(TokenFactory.createBool(word.toLowerCase(), this.line, this.col));
                 }
 
                 else if (this.isKeyword(word)) {
                     this.tokens.push(TokenFactory.createKeyword(word, this.line, this.col));
-                } 
-		else if(this.isBoolean(word)){
-		    this.tokens.push(TokenFactory.createBool(word,this.line,this.col));
-		}
-		else {
+                }
+                else if (this.isBoolean(word)) {
+                    this.tokens.push(TokenFactory.createBool(word, this.line, this.col));
+                }
+                else {
                     this.tokens.push(TokenFactory.createIdentifier(word, this.line, this.col));
                 }
                 continue;
@@ -148,11 +146,11 @@ export class Tokenizer {
                 if (this.peek() === '.' && isFloat) {
                     throw new Error(`Number cannot have multiple decimal points, Found extra decimal point at line ${this.line}, column ${this.col}`);
                 }
-                if(this.isAlpha(this.peek())){
+                if (this.isAlpha(this.peek())) {
                     throw new Error(`Invalid number format, Found unexpected character '${this.peek()}' after number at line ${this.line}, column ${this.col}`);
                 }
-                else{
-                    
+                else {
+
                 }
                 this.tokens.push(TokenFactory.createNumber(number, this.line, this.col));
                 continue;
@@ -187,29 +185,25 @@ export class Tokenizer {
             else if (this.isSemiColon(char)) {
                 this.tokens.push(TokenFactory.createSemiColon(this.line, this.col));
             }
-            else if(char === '<')
-            {
-                if(this.peek(1) === '=')
-                {
-                    this.tokens.push(TokenFactory.createLessThanOrEqual(this.line,this.col))
+            else if (char === '<') {
+                if (this.peek(1) === '=') {
+                    this.tokens.push(TokenFactory.createLessThanOrEqual(this.line, this.col))
                     this.advance()
                 }
                 else {
-                this.tokens.push(TokenFactory.createLessThan(this.line,this.col))
+                    this.tokens.push(TokenFactory.createLessThan(this.line, this.col))
                 }
             }
-            else if(char === '>')
-            {
-                if(this.peek(1) === '=')
-                {
-                    this.tokens.push(TokenFactory.createGreaterThanOrEqual(this.line,this.col))
+            else if (char === '>') {
+                if (this.peek(1) === '=') {
+                    this.tokens.push(TokenFactory.createGreaterThanOrEqual(this.line, this.col))
                     this.advance()
                 }
                 else {
-                this.tokens.push(TokenFactory.createGreaterThan(this.line,this.col))
+                    this.tokens.push(TokenFactory.createGreaterThan(this.line, this.col))
                 }
             }
-            else if (char === '/') {
+            else if (char === '/' && this.peek(1) !== '=') {
                 this.advance(); // Consume the '/'
                 if (this.peek() === '/') {
                     this.advance(); // Consume the second '/'
@@ -259,7 +253,7 @@ export class Tokenizer {
 
             }
             else if (char === ']') {
-            this.tokens.push(TokenFactory.createPunctuation(']', this.line, this.col));
+                this.tokens.push(TokenFactory.createPunctuation(']', this.line, this.col));
 
             }
             else if (char === '.') {

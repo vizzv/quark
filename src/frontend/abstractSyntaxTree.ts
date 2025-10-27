@@ -11,6 +11,7 @@ export type ASTNodeType =
     | 'LogicalExpression'
     | 'BitwiseExpression'
     | 'AssigmentExpression'
+    | 'BinaryExpression'
     | 'SpecialAssignmentExpression'
     | 'NumberLiteral'
     | 'TextLiteral'
@@ -41,6 +42,13 @@ export class AstTreeNode implements AstNode {
 
 }
 
+export class IdentifierNode extends AstTreeNode {
+    constructor(value: string, id: string) {
+        super('identifier', id);
+        this.value = value;
+    }
+}
+
 export class ProgramNode extends AstTreeNode {
     body: AstTreeNode[]
     constructor() {
@@ -61,27 +69,17 @@ export class LogicalExpression extends AstTreeNode {
         super('LogicalExpression', id);
     }
 }
-export class ArithmeticExpression extends AstTreeNode {
-    value: number
-    constructor(id: string, value: number) {
-        super('ArithmeticExpression', id);
-        this.value = value;
-    }
-}
-export class RelationalExpression extends AstTreeNode {
-    value: boolean
-    constructor(id: string, value: boolean) {
 
-        super('RelationalExpression', id);
-        this.value = value;
-    }
-}
-export class BitwiseExpression extends AstTreeNode {
-    value: any
-    constructor(id: string, value: any) {
+export class BinaryExpression extends AstTreeNode {
+    left: any
+    operator: string
+    right: any
+    constructor(left: any, operator: string, right: any,id: string='binaryExpr') {
 
-        super('BitwiseExpression', id);
-        this.value = value;
+        super('BinaryExpression', id);
+        this.left = left;
+        this.operator = operator;
+        this.right = right;
     }
 }
 

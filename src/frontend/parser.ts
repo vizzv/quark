@@ -1,10 +1,18 @@
 import { stat } from "fs";
-import { AstTreeNode, ProgramNode, ASTNodeType, BoolLiteral, TextLiteral, NumberLiteral, VariableDeclaration, IfExpression, LogicalExpression, EofNode, ExitStatement, VariableReassignment } from "./abstractSyntaxTree";
-import { Token, TOKEN_TYPE } from "./token";
+import { AstTreeNode, ProgramNode, ASTNodeType, BoolLiteral, TextLiteral, NumberLiteral, VariableDeclaration, IfExpression, LogicalExpression, EofNode, ExitStatement, VariableReassignment, BinaryExpression, IdentifierNode } from "./abstractSyntaxTree";
+import { Operators, Token, TOKEN_TYPE } from "./token";
 import { SymbolTable } from "./symbolTable";
 
 export class Parser {
     private tokens: Token[] = [];
+    private basicTypes: Map<string, string> = new Map([
+        ['number', 'number'],
+        ['text', 'text'],
+        ['bool', 'bool'],
+        ['NumberLiteral', 'number'],
+        ['TextLiteral', 'text'],
+        ['BoolLiteral', 'bool']
+    ]);
     private index: number = 0;
     constructor(tokens: Token[] = []) {
         this.tokens = tokens;
@@ -30,6 +38,8 @@ export class Parser {
 
     private parseLiteral(): AstTreeNode {
         var currentToken = this.advance();
+        console.log("in parseLiteral",currentToken);
+
         if (currentToken.type === TOKEN_TYPE.BOOL) {   //console.log("in parseLiteral bool");
             if (!["true", "false"].includes(currentToken.value?.toLowerCase() ?? "")) {
                 throw new Error(`Expected Bool but got ${currentToken.value} `);
@@ -60,8 +70,8 @@ export class Parser {
         }
         throw new Error(`Unsupported literal type: ${currentToken.type} at line ${currentToken.line} col ${currentToken.col}`);
     }
-    private getType(node: AstTreeNode): string {
-
+    private getType(node: AstTreeNode): string | null {
+        console.log("Getting type of node:", node);
         switch (node.type) {
             case "BoolLiteral":
                 return "bool";
@@ -69,6 +79,8 @@ export class Parser {
                 return "number";
             case "TextLiteral":
                 return "text";
+            case "identifier":
+                return SymbolTable.getEntry(node.value)?.type || null; 
             case "IfExpression": {
                 const thenTypes = node.thenBranch.map((n: AstTreeNode) => this.getType(n));
                 const elseTypes = node.elseBranch?.map((n: AstTreeNode) => this.getType(n)) ?? [];
@@ -76,10 +88,24 @@ export class Parser {
                 if (allTypes.size === 1) return [...allTypes][0];
                 throw new Error(`Mismatched return types in if-expression`);
             }
+            case "BinaryExpression" : {
+                console.log("BinaryExpression node:", node);
+                const leftType = this.getType(node.left) || SymbolTable.getEntry(node.left as string)?.type;
+                const rightType = this.getType(node.right);
+                console.log("BinaryExpression types:", leftType, rightType);
+                if (leftType !== rightType && this.basicTypes.get(leftType as string) !== this.basicTypes.get(rightType as string)) {
+                    throw new Error(`Type mismatch in binary expression: ${leftType} ${node.operator} ${rightType}`);
+                }
+                
+                return leftType as string;
+            }
+            case "VariableReassignment": {
+                return node.value?.type;
+            }
             case "ReturnStatement":
                 return this.getType(node.value as BoolLiteral);
             default:
-                throw new Error(`Cannot determine type of node type: ${node.type}`);
+                return null;
         }
     }
 
@@ -119,13 +145,12 @@ export class Parser {
         }
     }
 
-    parseVariableReassignment(): AstTreeNode | null {
+    private parseVariableReassignment(): AstTreeNode | null {
 
         const currentToken = this.advance();
         this.expect(TOKEN_TYPE.OPERATOR, '=');
         var val: AstTreeNode | null = this.parseExpression();
-        console.log("Parsed value for assignment:", val?.value);
-        this.expect(TOKEN_TYPE.PUNCTUATION, ';');
+        //console.log("Parsed value for assignment:", val?.value);
         return new VariableReassignment("", currentToken.value as string, val as AstTreeNode);
     }
 
@@ -151,14 +176,78 @@ export class Parser {
             return null;
         }
         else if (currentToken.type === TOKEN_TYPE.IDENTIFIER) {
-            //console.log("Parsing variable reassignment for identifier:", currentToken);
-            SymbolTable.hasEntry(currentToken.value as string) || (() => { throw new Error(`Variable ${currentToken.value} not declared before assignment at line ${currentToken.line} col ${currentToken.col}`) })();
-            var newValue = this.parseVariableReassignment();
-            console.log("New value for reassignment:", newValue,SymbolTable);
-            SymbolTable.getEntry(currentToken.value as string)?.type  !== this.getType(newValue?.value as AstTreeNode) && (() => { throw new Error(`Type mismatch in reassignment to variable ${currentToken.value} at line ${currentToken.line} col ${currentToken.col}`) })();
-            //SymbolTable.editEntry(currentToken.value as string, this.getType(newValue?.value as AstTreeNode) as "number" | "text" | "bool");
-            console.log("Parsed variable reassignment:", SymbolTable);
-            return newValue;
+            var nxtToken: Token = this.tokens[this.index + 1];
+            var newValue: AstTreeNode | null =  null;
+            if (nxtToken.type === "operator" && Object.values(Operators).includes(nxtToken.value as string))
+            {
+                console.log("identifier:", currentToken,nxtToken);
+                switch (nxtToken.value) {
+                    case Operators.ASSIGN:
+                        SymbolTable.hasEntry(currentToken.value as string) || (() => { throw new Error(`Variable ${currentToken.value} not declared before assignment at line ${currentToken.line} col ${currentToken.col}`) })();
+                        newValue = this.parseVariableReassignment();
+                        break;
+                    case Operators.MINUSEQL:
+                        SymbolTable.hasEntry(currentToken.value as string) || (() => { throw new Error(`Variable ${currentToken.value} not declared before assignment at line ${currentToken.line} col ${currentToken.col}`) })();
+                        this.advance();
+                        this.expect(TOKEN_TYPE.OPERATOR, '-=')
+                        console.log("peek", this.peek());
+                        var rhs = this.parseExpression();
+                        console.log("RHS of -= :", rhs);
+                        newValue = new BinaryExpression(currentToken,Operators.MINUS, rhs);
+                        break;
+                    case Operators.PLUSEQL:
+                        SymbolTable.hasEntry(currentToken.value as string) || (() => { throw new Error(`Variable ${currentToken.value} not declared before assignment at line ${currentToken.line} col ${currentToken.col}`) })();
+                        this.advance();
+                        this.expect(TOKEN_TYPE.OPERATOR, '+=')
+                        console.log("peek", this.peek());
+                        var rhs = this.parseExpression();
+                        console.log("RHS of += :", rhs);
+                        newValue = new BinaryExpression(currentToken,Operators.PLUS, rhs);
+                        break;
+                    case Operators.DIVEQL:
+                        SymbolTable.hasEntry(currentToken.value as string) || (() => { throw new Error(`Variable ${currentToken.value} not declared before assignment at line ${currentToken.line} col ${currentToken.col}`) })();
+                        this.advance();
+                        this.expect(TOKEN_TYPE.OPERATOR, '/=')
+                        console.log("peek", this.peek());
+                        var rhs = this.parseExpression();
+                        console.log("RHS of /= :", rhs);
+                        newValue = new BinaryExpression(currentToken,Operators.DIV, rhs);
+                        break;
+                    case Operators.MULEQL:
+                        SymbolTable.hasEntry(currentToken.value as string) || (() => { throw new Error(`Variable ${currentToken.value} not declared before assignment at line ${currentToken.line} col ${currentToken.col}`) })();
+                        this.advance();
+                        this.expect(TOKEN_TYPE.OPERATOR, '*=')
+                        console.log("peek", this.peek());
+                        var rhs = this.parseExpression();
+                        console.log("RHS of *= :", rhs);
+                        newValue = new BinaryExpression(currentToken,Operators.MUL, rhs);
+                        break;
+                    default:
+                        throw new Error(`Unsupported operator ${nxtToken.value} for reassignment at line ${nxtToken.line} col ${nxtToken.col}`);
+                }
+            }
+            else if( nxtToken.type === TOKEN_TYPE.PUNCTUATION && nxtToken.value === ';')
+            {
+                SymbolTable.hasEntry(currentToken.value as string) || (() => { throw new Error(`Variable ${currentToken.value} not declared before usage at line ${currentToken.line} col ${currentToken.col}`) })();
+                this.advance();
+                return new IdentifierNode(currentToken.value as string, "");
+            }
+            console.log("New Value for reassignment:", newValue,currentToken);
+            var leftType = (SymbolTable.getEntry(currentToken.value as string))?.type 
+            console.log("Left Type:", leftType);
+            console.log("Right Type:", newValue as AstTreeNode);
+
+            var rightType = this.getType(newValue as AstTreeNode);
+            console.log("Right Type:", rightType);
+
+            console.log("Reassignment types:", leftType, rightType);
+
+            if (leftType !== rightType && this.basicTypes.get(leftType as string) !== this.basicTypes.get(rightType as string)) {
+                throw new Error(`Type mismatch in reassignment: ${leftType} = ${rightType} at line ${currentToken.line} col ${currentToken.col}`);
+            }
+
+            this.expect(TOKEN_TYPE.PUNCTUATION, ';');
+            return newValue as AstTreeNode | null;;
         }
         else {
             throw new Error(`Unexpected Expression ${currentToken.type} ${currentToken.value} arrived at line ${currentToken.line} col ${currentToken.col}`)
