@@ -24,7 +24,7 @@ export class MSILGenerator {
       const varIndex = this.localIndex++
       const ilType = this.mapType(tree.variableType)
       this.locals.push(`    [${varIndex}] ${ilType} ${tree.identifier}`)
-      
+
       if (tree.body && tree.body.length > 0) {
         let exprIL = ""
         for (const node of tree.body) {
@@ -34,8 +34,7 @@ export class MSILGenerator {
         il += exprIL
       }
     }
-    else if (tree.type === "identifier")
-    {
+    else if (tree.type === "identifier") {
       const varName = tree.value as string
       const varIndex = this.locals.findIndex(local => local.endsWith(` ${varName}`))
       if (varIndex === -1) {
@@ -49,7 +48,7 @@ export class MSILGenerator {
       if (varIndex === -1) {
         throw new Error(`Variable ${varName} not found for reassignment.`)
       }
-      
+
       if (tree.value) {
         let exprIL = this.generate(tree.value)   // generate IL for the new value
         il += exprIL
@@ -73,17 +72,17 @@ export class MSILGenerator {
         il += `    div\n`
       }
 
-      if(tree.left.type as ASTNodeType === "identifier") {
-        const varName = tree.left.value as string
-        const varIndex = this.locals.findIndex(local => local.endsWith(` ${varName}`))
-        if (varIndex === -1) {
-          console.log(tree)
-          throw new Error(`Variable ${varName} not found for usage.`)
-        }
-        il += `    stloc.${varIndex}\n`  // load variable onto stack
-      }
+      // if(tree.left.type as ASTNodeType === "identifier") {
+      //   const varName = tree.left.value as string
+      //   const varIndex = this.locals.findIndex(local => local.endsWith(` ${varName}`))
+      //   if (varIndex === -1) {
+      //     console.log(tree)
+      //     throw new Error(`Variable ${varName} not found for usage.`)
+      //   }
+      //   il += `    stloc.${varIndex}\n`  // load variable onto stack
+      // }
 
-      
+
     }
 
     else if (tree.type === "NumberLiteral") {
@@ -97,8 +96,7 @@ export class MSILGenerator {
     else if (tree.type === "TextLiteral") {
       il += `    ldstr "${tree.value}"\n`
     }
-    else 
-    {
+    else {
       throw new Error(`Unhandled AST node type in IL generation: ${tree.type}`);
     }
 
@@ -106,7 +104,7 @@ export class MSILGenerator {
     //console.log("Current IL:\n", tree.type, "\n", il)
     if (tree.type === "Program") {
       // locals section
-      
+
       if (tree.body) {
         for (const node of tree.body) {
           il += this.generate(node)
