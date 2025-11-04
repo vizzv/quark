@@ -38,6 +38,8 @@ try {
   const parser = new Parser(tokens);
   const ast = parser.parse();
 
+  console.log("AST:", JSON.stringify(ast, null, 2));
+
   const generator = new MSILGenerator();
   const asmCode = generator.generate(ast);
 

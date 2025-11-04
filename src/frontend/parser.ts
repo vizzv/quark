@@ -2,6 +2,7 @@ import { AstTreeNode, ProgramNode, ASTNodeType, BoolLiteral, TextLiteral, Number
 import { Operators, Token, TOKEN_TYPE } from "./token";
 import { SymbolTable } from "./symbolTable";
 import chalk from "chalk";
+import { precedence } from "./precedence";
 
 export class Parser {
     private tokens: Token[] = [];
@@ -90,10 +91,10 @@ export class Parser {
                 throw new Error(`Mismatched return types in if-expression`);
             }
             case "BinaryExpression": {
-                console.log("BinaryExpression node:", node);
+                //console.log("BinaryExpression node:", node);
                 const leftType = this.getType(node.left) || SymbolTable.getEntry(node.left as string)?.type;
                 const rightType = this.getType(node.right);
-                console.log("BinaryExpression types:", leftType, rightType);
+                //console.log("BinaryExpression types:", leftType, rightType);
                 if (leftType !== rightType && this.basicTypes.get(leftType as string) !== this.basicTypes.get(rightType as string)) {
                     throw new Error(`Type mismatch in binary expression: ${leftType} ${node.operator} ${rightType}`);
                 }
@@ -163,7 +164,7 @@ export class Parser {
     private parseBinaryExpression(): AstTreeNode | null {
         //console.log("in parseBinaryExpression");
         var currnetToken = this.peek(); // left operand
-        console.log("Left operand:", currnetToken);
+        //console.log("Left operand:", currnetToken);
         var leftNode = null;
         if ([TOKEN_TYPE.BOOL, TOKEN_TYPE.CHAR, TOKEN_TYPE.TEXT, TOKEN_TYPE.NUMBER].includes(currnetToken.type)) {
             //console.log("last call ",this.peek());
@@ -178,8 +179,32 @@ export class Parser {
         var operatorToken = this.advance(); // operator
         //console.log("Operator token:", operatorToken);
         var rightOperand = this.parseExpression(); // right operand
+        var rootNode = new BinaryExpression(leftNode as AstTreeNode, operatorToken.value as string, rightOperand as AstTreeNode);
         this.expect(TOKEN_TYPE.PUNCTUATION, ';');
-        return new BinaryExpression(leftNode as AstTreeNode, operatorToken.value as string, rightOperand as AstTreeNode);
+        rootNode = this.adjustBinaryExpression(rootNode) as BinaryExpression;
+        return rootNode;
+    }
+
+    private adjustBinaryExpression(node: AstTreeNode):  BinaryExpression | AstTreeNode {
+        if (node.type !== "BinaryExpression") {
+            return node as BinaryExpression;
+        }
+        var rootNode = node as BinaryExpression;
+        var leftOperand = rootNode.left;
+        var operatorToken = rootNode.operator;
+        var rightOperand = rootNode.right;
+
+        if( rightOperand !== null && rightOperand.type === "BinaryExpression" && precedence.get(operatorToken as string)! > precedence.get((rightOperand as BinaryExpression).operator)!) {
+            var newLft = rootNode;
+            newLft.right = (rightOperand as BinaryExpression).left;
+            var newRht = this.adjustBinaryExpression((rightOperand as BinaryExpression).right);
+            rootNode = new BinaryExpression(newLft, (rightOperand as BinaryExpression).operator, newRht);
+        }
+        else 
+        {
+            rootNode.right = this.adjustBinaryExpression(rightOperand as AstTreeNode);
+        }
+        return rootNode;
     }
 
     private parseVariableReassignment(): AstTreeNode | null {
@@ -223,7 +248,7 @@ export class Parser {
             var nxtToken: Token = this.tokens[this.index + 1];
             var newValue: AstTreeNode | null = null;
             if (nxtToken.type === "operator" && Object.values(Operators).includes(nxtToken.value as string)) {
-                console.log("identifier:", currentToken, nxtToken);
+                //console.log("identifier:", currentToken, nxtToken);
                 switch (nxtToken.value) {
                     case Operators.ASSIGN:
                         SymbolTable.hasEntry(currentToken.value as string) || (() => { throw new Error(`Variable ${currentToken.value} not declared before assignment at line ${currentToken.line} col ${currentToken.col}`) })();
@@ -309,14 +334,14 @@ export class Parser {
             var rightType = this.getType(newValue as AstTreeNode);
             if (rightType == "BinaryExpression") {
                 rightType = this.getType(newValue?.value);
-                console.log("In Binary Expression for reassignment type check", newValue);
+                //console.log("In Binary Expression for reassignment type check", newValue);
                 //rightType = this.getType(rightTyp) ;
                 //throw new Error("Not implemented binary expression type resolution in reassignment yet");
             }
-            console.log("Left Type:", leftType);
-            console.log("Right Type:", rightType);
+            //console.log("Left Type:", leftType);
+            //console.log("Right Type:", rightType);
 
-            console.log("Reassignment types:", leftType, rightType);
+            //console.log("Reassignment types:", leftType, rightType);
 
             if (leftType !== rightType && this.basicTypes.get(leftType as string) !== this.basicTypes.get(rightType as string)) {
                 throw new Error(`Type mismatch in reassignment: ${leftType} = ${rightType} at line ${currentToken.line} col ${currentToken.col}`);

@@ -6,7 +6,7 @@ export class MSILGenerator {
   private locals: string[] = []
 
   generate = (tree: AstTreeNode): string => {
-    console.log("Generating IL for node type:", tree.type)
+    //console.log("Generating IL for node type:", tree.type)
     let il = ""
 
     if (tree.type === "Program") {
@@ -121,7 +121,7 @@ export class MSILGenerator {
         )
       }
 
-      il += "  ret\n}\n"
+      il += "     ldloc.0\ncall void [System.Console]System.Console::WriteLine(int32)\n  ret\n}\n"
     }
 
     return il

@@ -11,13 +11,17 @@
     stloc.0
     ldc.i4.s 8
     stloc.1
-    ldloc.0
-    ldloc.1
+    ldc.i4.s 25
+    ldc.i4.s 2
+    ldc.i4.s 42
+    ldc.i4.s 6
+    div
+    sub
     mul
+    ldc.i4.s 18
+    add
     stloc.0
-    ldloc.0
-    call void[System.Console]System.Console::WriteLine(int32)
-    ldloc.1
-    call void[System.Console]System.Console::WriteLine(int32)
+     ldloc.0
+call void [System.Console]System.Console::WriteLine(int32)
   ret
 }
