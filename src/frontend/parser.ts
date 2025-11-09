@@ -2,7 +2,7 @@ import { AstTreeNode, ProgramNode, ASTNodeType, BoolLiteral, TextLiteral, Number
 import { Operators, Token, TOKEN_TYPE } from "./token";
 import { SymbolTable } from "./symbolTable";
 import chalk from "chalk";
-import { precedence } from "./precedence";
+import { getAssociativity, getPrecedence } from "./precedence";
 
 export class Parser {
     private tokens: Token[] = [];
@@ -160,51 +160,54 @@ export class Parser {
             throw new Error(`INvalid variable declaration at line ${keyword.line} col ${keyword.col}, Invalid value is assigned or resulting expression is of different type`)
         }
     }
+    private parseBinaryExpression(minPrecedence: number = 0): AstTreeNode | null {
+        // Parse the left operand
+        let currentToken = this.peek();
+        let leftNode: AstTreeNode | null = null;
 
-    private parseBinaryExpression(): AstTreeNode | null {
-        //console.log("in parseBinaryExpression");
-        var currnetToken = this.peek(); // left operand
-        //console.log("Left operand:", currnetToken);
-        var leftNode = null;
-        if ([TOKEN_TYPE.BOOL, TOKEN_TYPE.CHAR, TOKEN_TYPE.TEXT, TOKEN_TYPE.NUMBER].includes(currnetToken.type)) {
-            //console.log("last call ",this.peek());
+        if (currentToken.type === TOKEN_TYPE.OPERATOR && (currentToken.value === '++' || currentToken.value === '--')) {
+            const operator = currentToken.value;
+            this.advance(); // consume ++ or --
+            const argument = this.parseBinaryExpression(10) as AstTreeNode; // high precedence
+            return new UnaryExpression(operator, argument, true, this.id()); // prefix
+        }
+
+        if (currentToken.type === TOKEN_TYPE.PUNCTUATION && currentToken.value === '(') {
+            this.advance(); // consume '('
+            leftNode = this.parseBinaryExpression(0); // parse inside parentheses
+            const next = this.peek();
+            if (next.type !== TOKEN_TYPE.PUNCTUATION || next.value !== ')') {
+                throw new Error(`Expected ')' after expression at line ${next.line}, col ${next.col}`);
+            }
+            this.advance(); // consume ')'
+        }
+
+        else if ([TOKEN_TYPE.BOOL, TOKEN_TYPE.CHAR, TOKEN_TYPE.TEXT, TOKEN_TYPE.NUMBER].includes(currentToken.type)) {
             leftNode = this.parseLiteral();
         }
-        else if (currnetToken.type === TOKEN_TYPE.IDENTIFIER) {
-            SymbolTable.hasEntry(currnetToken.value as string) || (() => { throw new Error(`Variable ${currnetToken.value} not declared before usage at line ${currnetToken.line} col ${currnetToken.col}`) })();
-            leftNode = new IdentifierNode(currnetToken.value as string, "");
-            console.log(chalk.cyan("koi lena dena nai he"))
+        else if (currentToken.type === TOKEN_TYPE.IDENTIFIER) {
+            SymbolTable.hasEntry(currentToken.value as string) ||
+                (() => { throw new Error(`Variable ${currentToken.value} not declared before usage at line ${currentToken.line} col ${currentToken.col}`) })();
+            this.advance(); // consume identifier
+            leftNode = new IdentifierNode(currentToken.value as string, this.id());
         }
-        // this.advance();
-        var operatorToken = this.advance(); // operator
-        //console.log("Operator token:", operatorToken);
-        var rightOperand = this.parseExpression(); // right operand
-        var rootNode = new BinaryExpression(leftNode as AstTreeNode, operatorToken.value as string, rightOperand as AstTreeNode);
-        this.expect(TOKEN_TYPE.PUNCTUATION, ';');
-        rootNode = this.adjustBinaryExpression(rootNode) as BinaryExpression;
-        return rootNode;
-    }
 
-    private adjustBinaryExpression(node: AstTreeNode):  BinaryExpression | AstTreeNode {
-        if (node.type !== "BinaryExpression") {
-            return node as BinaryExpression;
-        }
-        var rootNode = node as BinaryExpression;
-        var leftOperand = rootNode.left;
-        var operatorToken = rootNode.operator;
-        var rightOperand = rootNode.right;
+        while (!this.isAtEnd()) {
+            const operatorToken = this.peek();
+            if (operatorToken.type !== TOKEN_TYPE.OPERATOR) break;
 
-        if( rightOperand !== null && rightOperand.type === "BinaryExpression" && precedence.get(operatorToken as string)! > precedence.get((rightOperand as BinaryExpression).operator)!) {
-            var newLft = rootNode;
-            newLft.right = (rightOperand as BinaryExpression).left;
-            var newRht = this.adjustBinaryExpression((rightOperand as BinaryExpression).right);
-            rootNode = new BinaryExpression(newLft, (rightOperand as BinaryExpression).operator, newRht);
+            const precedence = getPrecedence(operatorToken.value!);
+            if (precedence < minPrecedence) break;
+
+            this.advance();
+
+            const nextMinPrec = getAssociativity(operatorToken.value!) === 'right' ? precedence : precedence + 1;
+            const rightNode = this.parseBinaryExpression(nextMinPrec);
+
+            leftNode = new BinaryExpression(leftNode!, operatorToken.value!, rightNode!, this.id());
         }
-        else 
-        {
-            rootNode.right = this.adjustBinaryExpression(rightOperand as AstTreeNode);
-        }
-        return rootNode;
+
+        return leftNode;
     }
 
     private parseVariableReassignment(): AstTreeNode | null {
@@ -230,12 +233,18 @@ export class Parser {
                     throw new Error(`Unexpected Keyword is encountered ${currentToken.value}`);
             }
         }
+        else if (currentToken.type === TOKEN_TYPE.PUNCTUATION && currentToken.value === '(') {
+            // Handle grouped or parenthesized expressions
+            const exprNode = this.parseBinaryExpression();
+            return exprNode;
+        }
+
         else if ([TOKEN_TYPE.BOOL, TOKEN_TYPE.CHAR, TOKEN_TYPE.TEXT, TOKEN_TYPE.NUMBER].includes(currentToken.type)) {
             var nxtToken = this.peek(1);
             var opratorArray = Object.values(Operators);
             if (nxtToken.type === TOKEN_TYPE.OPERATOR && opratorArray.includes(nxtToken.value as string)) {
                 var nnode = this.parseBinaryExpression();
-                this.index = this.index - 1;
+                //this.index = this.index - 1;
                 return nnode;
             }
             return this.parseLiteral();
@@ -322,26 +331,14 @@ export class Parser {
                         throw new Error(`Unsupported operator ${nxtToken.value} for reassignment at line ${nxtToken.line} col ${nxtToken.col}`);
                 }
             }
-            else if (nxtToken.type === TOKEN_TYPE.PUNCTUATION && nxtToken.value === ';') {
-                SymbolTable.hasEntry(currentToken.value as string) || (() => { throw new Error(`Variable ${currentToken.value} not declared before usage at line ${currentToken.line} col ${currentToken.col}`) })();
-                this.advance();
-                return new IdentifierNode(currentToken.value as string, "");
-            }
-            //console.log("New Value for reassignment:", newValue,currentToken);
+
             var leftType = (SymbolTable.getEntry(currentToken.value as string))?.type
 
 
             var rightType = this.getType(newValue as AstTreeNode);
             if (rightType == "BinaryExpression") {
                 rightType = this.getType(newValue?.value);
-                //console.log("In Binary Expression for reassignment type check", newValue);
-                //rightType = this.getType(rightTyp) ;
-                //throw new Error("Not implemented binary expression type resolution in reassignment yet");
             }
-            //console.log("Left Type:", leftType);
-            //console.log("Right Type:", rightType);
-
-            //console.log("Reassignment types:", leftType, rightType);
 
             if (leftType !== rightType && this.basicTypes.get(leftType as string) !== this.basicTypes.get(rightType as string)) {
                 throw new Error(`Type mismatch in reassignment: ${leftType} = ${rightType} at line ${currentToken.line} col ${currentToken.col}`);
@@ -350,7 +347,6 @@ export class Parser {
             return newValue as AstTreeNode | null;
         }
         else {
-            //console.log("Unexpected Expression:", this.tokens.splice(this.index));
             throw new Error(`Unexpected Expression ${currentToken.type} ${currentToken.value} arrived at line ${currentToken.line} col ${currentToken.col}`)
         }
     }

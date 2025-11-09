@@ -1,5 +1,5 @@
 number age = 7;
 number maxAge = 8;
-age =  25 * 2 - 42 / 6 + 18; 
+age = ( 25 ) +  2 * ( 3 + 5 * (16 - maxAge) / 2); //1 + 2 * 4 - 3; 
 
 
