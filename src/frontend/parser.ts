@@ -1,8 +1,9 @@
-import { AstTreeNode, ProgramNode, ASTNodeType, BoolLiteral, TextLiteral, NumberLiteral, VariableDeclaration, IfExpression, LogicalExpression, EofNode, ExitStatement, VariableReassignment, BinaryExpression, IdentifierNode } from "./abstractSyntaxTree";
+import { AstTreeNode, ProgramNode, ASTNodeType, BoolLiteral, TextLiteral, NumberLiteral, VariableDeclaration, IfExpression, LogicalExpression, EofNode, ExitStatement, VariableReassignment, BinaryExpression, IdentifierNode, UnaryExpression } from "./abstractSyntaxTree";
 import { Operators, Token, TOKEN_TYPE } from "./token";
 import { SymbolTable } from "./symbolTable";
 import chalk from "chalk";
 import { getAssociativity, getPrecedence } from "./precedence";
+import { error } from "console";
 
 export class Parser {
     private tokens: Token[] = [];
@@ -106,7 +107,10 @@ export class Parser {
             }
             case "ReturnStatement":
                 return this.getType(node.value as BoolLiteral);
+            case "UnaryExpression":
+                return this.getType(node.argument)
             default:
+                console.log("in default case  get",node.type);
                 return null;
         }
     }
@@ -165,8 +169,13 @@ export class Parser {
         let currentToken = this.peek();
         let leftNode: AstTreeNode | null = null;
 
-
-        if (currentToken.type === TOKEN_TYPE.PUNCTUATION && currentToken.value === '(') {
+        if (currentToken.type === TOKEN_TYPE.OPERATOR && (currentToken.value === '++' || currentToken.value === '--')) {
+            const operator = currentToken.value;
+            this.advance(); // consume ++ or --
+            const argument = this.parseBinaryExpression(10) as AstTreeNode; // high precedence
+            return new UnaryExpression(operator, argument, true, this.id()); // prefix
+        }
+        else if (currentToken.type === TOKEN_TYPE.PUNCTUATION && currentToken.value === '(') {
             this.advance(); // consume '('
             leftNode = this.parseBinaryExpression(0); // parse inside parentheses
             const next = this.peek();
@@ -175,7 +184,6 @@ export class Parser {
             }
             this.advance(); // consume ')'
         }
-
         else if ([TOKEN_TYPE.BOOL, TOKEN_TYPE.CHAR, TOKEN_TYPE.TEXT, TOKEN_TYPE.NUMBER].includes(currentToken.type)) {
             leftNode = this.parseLiteral();
         }
@@ -261,36 +269,28 @@ export class Parser {
                         SymbolTable.hasEntry(currentToken.value as string) || (() => { throw new Error(`Variable ${currentToken.value} not declared before assignment at line ${currentToken.line} col ${currentToken.col}`) })();
                         this.advance();
                         this.expect(TOKEN_TYPE.OPERATOR, '-=')
-                        console.log("peek", this.peek());
                         var rhs = this.parseExpression();
-                        console.log("RHS of -= :", rhs);
                         newValue = new BinaryExpression(currentToken, Operators.MINUS, rhs);
                         break;
                     case Operators.PLUSEQL:
                         SymbolTable.hasEntry(currentToken.value as string) || (() => { throw new Error(`Variable ${currentToken.value} not declared before assignment at line ${currentToken.line} col ${currentToken.col}`) })();
                         this.advance();
                         this.expect(TOKEN_TYPE.OPERATOR, '+=')
-                        console.log("peek", this.peek());
                         var rhs = this.parseExpression();
-                        console.log("RHS of += :", rhs);
                         newValue = new BinaryExpression(currentToken, Operators.PLUS, rhs);
                         break;
                     case Operators.DIVEQL:
                         SymbolTable.hasEntry(currentToken.value as string) || (() => { throw new Error(`Variable ${currentToken.value} not declared before assignment at line ${currentToken.line} col ${currentToken.col}`) })();
                         this.advance();
                         this.expect(TOKEN_TYPE.OPERATOR, '/=')
-                        console.log("peek", this.peek());
                         var rhs = this.parseExpression();
-                        console.log("RHS of /= :", rhs);
                         newValue = new BinaryExpression(currentToken, Operators.DIV, rhs);
                         break;
                     case Operators.MULEQL:
                         SymbolTable.hasEntry(currentToken.value as string) || (() => { throw new Error(`Variable ${currentToken.value} not declared before assignment at line ${currentToken.line} col ${currentToken.col}`) })();
                         this.advance();
                         this.expect(TOKEN_TYPE.OPERATOR, '*=')
-                        console.log("peek", this.peek());
                         var rhs = this.parseExpression();
-                        console.log("RHS of *= :", rhs);
                         newValue = new BinaryExpression(currentToken, Operators.MUL, rhs);
                         break;
                     case Operators.PLUS:
@@ -321,17 +321,30 @@ export class Parser {
                         newValue = new BinaryExpression(currentToken, Operators.MUL, rhs);
                         this.index = this.index;
                         return newValue as AstTreeNode | null;
+                    case Operators.INCREMENT:
+                        SymbolTable.hasEntry(currentToken.value as string) || (() => { throw new Error(`Variable ${currentToken.value} not declared before assignment at line ${currentToken.line} col ${currentToken.col}`) })();
+                        this.advance();
+                        this.expect(TOKEN_TYPE.OPERATOR,"++");
+                        return new UnaryExpression(Operators.INCREMENT,new IdentifierNode(currentToken.value!,this.id()),false,this.id());
+                    case Operators.DEECREMENT:
+                        SymbolTable.hasEntry(currentToken.value as string) || (() => { throw new Error(`Variable ${currentToken.value} not declared before assignment at line ${currentToken.line} col ${currentToken.col}`) })();
+                        this.advance();
+                        this.expect(TOKEN_TYPE.OPERATOR,"--");
+                        return new UnaryExpression(Operators.DEECREMENT,new IdentifierNode(currentToken.value!,this.id()),false,this.id());
+                    
                     default:
                         throw new Error(`Unsupported operator ${nxtToken.value} for reassignment at line ${nxtToken.line} col ${nxtToken.col}`);
                 }
             }
 
             var leftType = (SymbolTable.getEntry(currentToken.value as string))?.type
-
-
             var rightType = this.getType(newValue as AstTreeNode);
             if (rightType == "BinaryExpression") {
                 rightType = this.getType(newValue?.value);
+            }
+            if( rightType == "UnaryExpression")
+            {
+                rightType = this.getType(newValue?.value.argument);
             }
 
             if (leftType !== rightType && this.basicTypes.get(leftType as string) !== this.basicTypes.get(rightType as string)) {
@@ -339,6 +352,19 @@ export class Parser {
             }
             this.expect(TOKEN_TYPE.PUNCTUATION, ';');
             return newValue as AstTreeNode | null;
+        }
+        else if(currentToken.type ===  TOKEN_TYPE.OPERATOR &&  (currentToken.value === Operators.INCREMENT ||  currentToken.value === Operators.DEECREMENT))
+        {
+            this.expect(TOKEN_TYPE.OPERATOR,currentToken.value);
+                       var nextToken = this.peek();
+                        if(nextToken.type === TOKEN_TYPE.IDENTIFIER)
+                        {
+                            this.advance()
+                           return new UnaryExpression(currentToken.value,new IdentifierNode(nextToken.value!,this.id()),true,this.id());
+                        }
+                        else{
+                            throw new Error(`Unsupported Uniary Operation ${nextToken.value} for reassignment at line ${nextToken.line} col ${nextToken.col}`);
+                        }
         }
         else {
             throw new Error(`Unexpected Expression ${currentToken.type} ${currentToken.value} arrived at line ${currentToken.line} col ${currentToken.col}`)

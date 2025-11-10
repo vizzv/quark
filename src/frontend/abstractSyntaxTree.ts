@@ -11,6 +11,7 @@ export type ASTNodeType =
     | 'LogicalExpression'
     | 'BitwiseExpression'
     | 'AssigmentExpression'
+    | 'UnaryExpression'
     | 'BinaryExpression'
     | 'SpecialAssignmentExpression'
     | 'NumberLiteral'
@@ -67,6 +68,18 @@ export class EofNode extends AstTreeNode {
 export class LogicalExpression extends AstTreeNode {
     constructor(id: string) {
         super('LogicalExpression', id);
+    }
+}
+export class UnaryExpression extends AstTreeNode {
+    operator: string;
+    argument: AstTreeNode;
+    prefix: boolean;
+
+    constructor(operator: string, argument: AstTreeNode, prefix: boolean, id: string = 'unaryExpr') {
+        super('UnaryExpression', id);
+        this.operator = operator;
+        this.argument = argument;
+        this.prefix = prefix;
     }
 }
 

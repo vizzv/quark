@@ -33,6 +33,8 @@ export const Operators = {
   ASSIGN: '=',
   DIVEQL: '/=',
   MULEQL: '*=',
+  INCREMENT : '++',
+  DEECREMENT : '--',
 }
 export type TokenType = typeof TOKEN_TYPE[keyof typeof TOKEN_TYPE];
 

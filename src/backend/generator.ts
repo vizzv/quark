@@ -43,16 +43,31 @@ export class MSILGenerator {
       il += `    ldloc.${varIndex}\n`  // load variable onto stack
     }
     else if (tree.type === "VariableReassignment") {
-      const varName = tree.identifier
-      const varIndex = this.locals.findIndex(local => local.endsWith(` ${varName}`))
+      const varName = tree.identifier;
+      const varIndex = this.locals.findIndex(local => local.endsWith(` ${varName}`));
+    
       if (varIndex === -1) {
-        throw new Error(`Variable ${varName} not found for reassignment.`)
+        throw new Error(`Variable ${varName} not found for reassignment.`);
       }
-
+    
       if (tree.value) {
-        let exprIL = this.generate(tree.value)   // generate IL for the new value
-        il += exprIL
-        il += `    stloc.${varIndex}\n`  // store the new value in the variable
+        let exprIL = this.generate(tree.value);
+    
+        // 🧠 Handle postfix ++ / -- correctly
+        if (tree.value.type === "UnaryExpression") {
+          const unary = tree.value;
+          const argName = unary.argument.value as string;
+          const argIndex = this.locals.findIndex(local => local.endsWith(` ${argName}`));
+    
+          // For postfix (a++ or a--), the IL leaves the *old* value on stack,
+          // but assignment expects the *new* value, so reload updated var
+          if (!unary.prefix) {
+            exprIL += `    ldloc.${argIndex}\n`;
+          }
+        }
+    
+        il += exprIL;
+        il += `    stloc.${varIndex}\n`; // store result into reassigned variable
       }
     }
     else if (tree.type === "BinaryExpression") {
@@ -84,6 +99,41 @@ export class MSILGenerator {
 
 
     }
+    else if (tree.type === "UnaryExpression") {
+
+      const arg = tree.argument;
+      const varName = arg.value as string;
+      const varIndex = this.locals.findIndex(local => local.endsWith(` ${varName}`));
+      if (varIndex === -1) {
+        throw new Error(`Variable ${varName} not found for unary operation.`);
+      }
+      console.log("arg",arg,varName,varIndex)
+      
+      // Load current value of the variable
+      let ilUnary = `    ldloc.${varIndex}\n`;
+    
+
+      if (tree.prefix) {
+        // ++a — increment first, then store
+        if (tree.operator === "++") {
+          ilUnary += `    ldc.i4.1\n    add\n`;
+        } else if (tree.operator === "--") {
+          ilUnary += `    ldc.i4.1\n    sub\n`;
+        }
+        ilUnary +=`   stloc.${varIndex}\n`;
+        ilUnary +=`   ldloc.${varIndex}\n`
+      } else {
+        ilUnary =
+          `     ldloc.${varIndex}\n dup\n` +
+          (tree.operator === "++"
+            ? `    ldc.i4.1\n    add\n`
+            : `    ldc.i4.1\n    sub\n`) +
+          `    stloc.${varIndex}\n`;
+      }
+    
+      il += ilUnary;
+    }
+    
 
     else if (tree.type === "NumberLiteral") {
       il += `    ldc.i4.s ${tree.value}\n`   // push value onto stack
