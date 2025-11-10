@@ -165,12 +165,6 @@ export class Parser {
         let currentToken = this.peek();
         let leftNode: AstTreeNode | null = null;
 
-        if (currentToken.type === TOKEN_TYPE.OPERATOR && (currentToken.value === '++' || currentToken.value === '--')) {
-            const operator = currentToken.value;
-            this.advance(); // consume ++ or --
-            const argument = this.parseBinaryExpression(10) as AstTreeNode; // high precedence
-            return new UnaryExpression(operator, argument, true, this.id()); // prefix
-        }
 
         if (currentToken.type === TOKEN_TYPE.PUNCTUATION && currentToken.value === '(') {
             this.advance(); // consume '('
