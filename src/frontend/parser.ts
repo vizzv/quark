@@ -110,7 +110,6 @@ export class Parser {
             case "UnaryExpression":
                 return this.getType(node.argument)
             default:
-                console.log("in default case  get",node.type);
                 return null;
         }
     }
@@ -124,7 +123,6 @@ export class Parser {
         }
         this.expect(TOKEN_TYPE.OPERATOR, '=');
         const value = this.parseExpression();
-
         this.expect(TOKEN_TYPE.PUNCTUATION, ';');
 
         if (value instanceof BoolLiteral) {
@@ -217,13 +215,11 @@ export class Parser {
         const currentToken = this.advance();
         this.expect(TOKEN_TYPE.OPERATOR, '=');
         var val: AstTreeNode | null = this.parseExpression();
-        //console.log("Parsed value for assignment:", val?.value);
         return new VariableReassignment("", currentToken.value as string, val as AstTreeNode);
     }
 
     private parseExpression(): AstTreeNode | null {
         const currentToken = this.peek();
-        //console.log("currentToken",currentToken.type,currentToken.value,currentToken.col,currentToken.line);
         if (currentToken.type === TOKEN_TYPE.KEYWORD) {
             switch (currentToken.value) {
                 case 'number':
@@ -324,14 +320,31 @@ export class Parser {
                     case Operators.INCREMENT:
                         SymbolTable.hasEntry(currentToken.value as string) || (() => { throw new Error(`Variable ${currentToken.value} not declared before assignment at line ${currentToken.line} col ${currentToken.col}`) })();
                         this.advance();
-                        this.expect(TOKEN_TYPE.OPERATOR,"++");
-                        return new UnaryExpression(Operators.INCREMENT,new IdentifierNode(currentToken.value!,this.id()),false,this.id());
+                        this.expect(TOKEN_TYPE.OPERATOR, "++");
+                        if (this.peek().type === TOKEN_TYPE.PUNCTUATION && this.peek().value === ';') {
+                            return new UnaryExpression(Operators.INCREMENT, new IdentifierNode(currentToken.value!, this.id()), false, this.id());
+                        }
+                        var nxtOperator = this.advance();
+                        console.log(chalk.magenta(JSON.stringify(nxtOperator, null, 2)));
+                        var right = this.parseExpression();
+
+                        var leftNode = new UnaryExpression(Operators.INCREMENT!, new IdentifierNode(currentToken.value!, this.id()), false, this.id());
+                        return new BinaryExpression(leftNode, nxtOperator.value!, right!, this.id());
                     case Operators.DEECREMENT:
+                        console.log(chalk.green(JSON.stringify(this.tokens[this.index + 1], null, 2)));
                         SymbolTable.hasEntry(currentToken.value as string) || (() => { throw new Error(`Variable ${currentToken.value} not declared before assignment at line ${currentToken.line} col ${currentToken.col}`) })();
                         this.advance();
-                        this.expect(TOKEN_TYPE.OPERATOR,"--");
-                        return new UnaryExpression(Operators.DEECREMENT,new IdentifierNode(currentToken.value!,this.id()),false,this.id());
-                    
+                        this.expect(TOKEN_TYPE.OPERATOR, "--");
+                        if (this.peek().type === TOKEN_TYPE.PUNCTUATION && this.peek().value === ';') {
+                            return new UnaryExpression(Operators.DEECREMENT, new IdentifierNode(currentToken.value!, this.id()), false, this.id());
+                        }
+                        var nxtOperator = this.advance();
+                        console.log(chalk.magenta(JSON.stringify(nxtOperator, null, 2)));
+                        var right = this.parseExpression();
+
+                        var leftNode = new UnaryExpression(Operators.DEECREMENT!, new IdentifierNode(currentToken.value!, this.id()), false, this.id());
+                        return new BinaryExpression(leftNode, nxtOperator.value!, right!, this.id());
+
                     default:
                         throw new Error(`Unsupported operator ${nxtToken.value} for reassignment at line ${nxtToken.line} col ${nxtToken.col}`);
                 }
@@ -342,8 +355,7 @@ export class Parser {
             if (rightType == "BinaryExpression") {
                 rightType = this.getType(newValue?.value);
             }
-            if( rightType == "UnaryExpression")
-            {
+            if (rightType == "UnaryExpression") {
                 rightType = this.getType(newValue?.value.argument);
             }
 
@@ -353,18 +365,23 @@ export class Parser {
             this.expect(TOKEN_TYPE.PUNCTUATION, ';');
             return newValue as AstTreeNode | null;
         }
-        else if(currentToken.type ===  TOKEN_TYPE.OPERATOR &&  (currentToken.value === Operators.INCREMENT ||  currentToken.value === Operators.DEECREMENT))
-        {
-            this.expect(TOKEN_TYPE.OPERATOR,currentToken.value);
-                       var nextToken = this.peek();
-                        if(nextToken.type === TOKEN_TYPE.IDENTIFIER)
-                        {
-                            this.advance()
-                           return new UnaryExpression(currentToken.value,new IdentifierNode(nextToken.value!,this.id()),true,this.id());
-                        }
-                        else{
-                            throw new Error(`Unsupported Uniary Operation ${nextToken.value} for reassignment at line ${nextToken.line} col ${nextToken.col}`);
-                        }
+        else if (currentToken.type === TOKEN_TYPE.OPERATOR && (currentToken.value === Operators.INCREMENT || currentToken.value === Operators.DEECREMENT)) {
+            this.expect(TOKEN_TYPE.OPERATOR, currentToken.value);
+            var nextToken = this.peek();
+            if (nextToken.type === TOKEN_TYPE.IDENTIFIER) {
+                this.advance();
+                if (this.peek().type === TOKEN_TYPE.PUNCTUATION && this.peek().value === ';') {
+                    return new UnaryExpression(currentToken.value, new IdentifierNode(nextToken.value!, this.id()), true, this.id());
+                }
+                var nxtOperator = this.advance();
+                var right = this.parseExpression();
+                var leftNode = new UnaryExpression(currentToken.value, new IdentifierNode(nextToken.value!, this.id()), true, this.id());
+                return new BinaryExpression(leftNode, nxtOperator.value!, right!, this.id());
+
+            }
+            else {
+                throw new Error(`Unsupported Uniary Operation ${nextToken.value} for reassignment at line ${nextToken.line} col ${nextToken.col}`);
+            }
         }
         else {
             throw new Error(`Unexpected Expression ${currentToken.type} ${currentToken.value} arrived at line ${currentToken.line} col ${currentToken.col}`)
